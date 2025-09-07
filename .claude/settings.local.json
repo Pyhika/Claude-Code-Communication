@@ -11,7 +11,8 @@
       "Bash(tmux source-file:*)",
       "Bash(./enable-mouse.sh)",
       "Bash(tmux show-options:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
