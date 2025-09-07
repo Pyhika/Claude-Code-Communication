@@ -76,7 +76,16 @@ NUM_WORKERS="$NUM" ./launch-agents.sh ${YES:+-y} | cat
 assign_role() {
   local worker="$1"; shift
   local role_msg="$*"
-  ./agent-send.sh "$worker" "$role_msg"
+  
+  # workerのペイン番号を取得
+  local worker_num="${worker#worker}"
+  
+  # ペインが存在するか確認
+  if tmux list-panes -t "multiagent:0.$worker_num" >/dev/null 2>&1; then
+    ./agent-send.sh "$worker" "$role_msg"
+  else
+    echo "⚠️ $worker のペインが存在しないため、スキップします"
+  fi
 }
 
 if [ "$DO_ASSIGN" = true ]; then
@@ -115,5 +124,18 @@ fi
 
 echo "📋 まとめ:"
 echo "  セッション: multiagent, president"
-echo "  ワーカー数: $NUM"
+echo "  要求ワーカー数: $NUM"
+
+# 実際のペイン数を確認
+ACTUAL_PANES=$(tmux list-panes -t multiagent:0 2>/dev/null | wc -l | tr -d ' ')
+if [ -n "$ACTUAL_PANES" ] && [ "$ACTUAL_PANES" -gt 0 ]; then
+  ACTUAL_WORKERS=$((ACTUAL_PANES - 1))
+  echo "  実際のワーカー数: $ACTUAL_WORKERS (boss1 + worker1-$ACTUAL_WORKERS)"
+  if [ "$ACTUAL_WORKERS" -lt "$NUM" ]; then
+    echo "  ⚠️ 注意: スペース不足により、一部のワーカーが作成されませんでした"
+  fi
+else
+  echo "  ⚠️ multiagentセッションが見つかりません"
+fi
+
 echo "  役割割当: ${DO_ASSIGN}"

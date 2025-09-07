@@ -102,8 +102,18 @@ if [ "$NUM_WORKERS" -le 3 ]; then
     tmux resize-pane -t multiagent:0.0 -x 40%
 else
     # 4人以上: グリッド表示（全員を見やすく）
-    for _ in $(seq 1 "$NUM_WORKERS"); do
-        tmux split-window -t "multiagent:0"
+    for i in $(seq 1 "$NUM_WORKERS"); do
+        if ! tmux split-window -t "multiagent:0" 2>/dev/null; then
+            # スペースが足りない場合はウィンドウサイズを拡大
+            WIN_H=$((WIN_H + 20))
+            tmux resize-window -t multiagent:0 -y "$WIN_H" 2>/dev/null || true
+            # tiledレイアウトで再配置してから再試行
+            tmux select-layout -t multiagent:0 tiled 2>/dev/null || true
+            if ! tmux split-window -t "multiagent:0" 2>/dev/null; then
+                log_warn "⚠️ ペイン $((i+1)) の作成をスキップ（スペース不足）"
+                break
+            fi
+        fi
     done
     tmux select-layout -t multiagent:0 tiled
 fi
