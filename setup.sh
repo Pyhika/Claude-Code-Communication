@@ -70,21 +70,42 @@ echo ""
 log_info "📺 multiagentセッション作成開始 (可変ペイン)..."
 
 # 最初のペイン作成（十分な仮想サイズを確保）
-tmux new-session -d -s multiagent -n "agents" -x 200 -y 60
+WIN_W=${TMUX_WINDOW_WIDTH:-240}
+WIN_H=${TMUX_WINDOW_HEIGHT:-80}
+tmux new-session -d -s multiagent -n "agents" -x "$WIN_W" -y "$WIN_H"
+# 念のためリサイズ
+tmux resize-window -t multiagent:0 -x "$WIN_W" -y "$WIN_H" 2>/dev/null || true
 
 # 動的スケール: NUM_WORKERS（デフォルト3）
 NUM_WORKERS=${NUM_WORKERS:-3}
 if [ "$NUM_WORKERS" -lt 1 ]; then NUM_WORKERS=1; fi
 
-# 左右分割（左: boss1, 右: workers 縦積み）
-tmux split-window -h -t "multiagent:0"
-
-if [ "$NUM_WORKERS" -gt 1 ]; then
-    # 右側 0.1 を起点に、(NUM_WORKERS-1) 回 縦分割
-    for _ in $(seq 2 "$NUM_WORKERS"); do
-        tmux select-pane -t "multiagent:0.1"
-        tmux split-window -v -t "multiagent:0.1"
+# レイアウト選択（ワーカー数に応じて最適化）
+if [ "$NUM_WORKERS" -le 3 ]; then
+    # 3人以下: 左右分割（見やすい）
+    tmux split-window -h -t "multiagent:0"
+    
+    # 右側で NUM_WORKERS-1 回 分割
+    if [ "$NUM_WORKERS" -gt 1 ]; then
+        for _ in $(seq 2 "$NUM_WORKERS"); do
+            tallest=$(tmux list-panes -t multiagent:0 -F "#{pane_index} #{pane_height}" | awk '$1!=0 {print $0}' | sort -k2 -nr | head -1 | cut -d' ' -f1)
+            if [ -z "$tallest" ]; then tallest=1; fi
+            if ! tmux split-window -v -t "multiagent:0.$tallest" 2>/dev/null; then
+                WIN_H=$((WIN_H + 20))
+                tmux resize-window -t multiagent:0 -y "$WIN_H" 2>/dev/null || true
+                tmux split-window -v -t "multiagent:0.$tallest"
+            fi
+        done
+    fi
+    # boss1を大きく表示
+    tmux select-layout -t multiagent:0 main-vertical
+    tmux resize-pane -t multiagent:0.0 -x 40%
+else
+    # 4人以上: グリッド表示（全員を見やすく）
+    for _ in $(seq 1 "$NUM_WORKERS"); do
+        tmux split-window -t "multiagent:0"
     done
+    tmux select-layout -t multiagent:0 tiled
 fi
 
 # ペインタイトル設定
@@ -108,13 +129,16 @@ while [ $idx -le $NUM_WORKERS ]; do
     idx=$((idx + 1))
 done
 
+# 最終的にレイアウト整形
+tmux select-layout -t multiagent:0 even-vertical 2>/dev/null || true
+
 log_success "✅ multiagentセッション作成完了"
 echo ""
 
 # STEP 3: presidentセッション作成（1ペイン）
 log_info "👑 presidentセッション作成開始..."
 
-tmux new-session -d -s president -x 200 -y 60
+tmux new-session -d -s president -x "$WIN_W" -y "$WIN_H"
 tmux send-keys -t president "cd $(pwd)" C-m
 tmux send-keys -t president "export PS1='(\[\033[1;35m\]PRESIDENT\[\033[0m\]) \[\033[1;32m\]\\w\[\033[0m\]\\$ '" C-m
 tmux send-keys -t president "echo '=== PRESIDENT セッション ==='" C-m

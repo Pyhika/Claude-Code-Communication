@@ -1,307 +1,416 @@
-# 🤖 Claude Code エージェント通信システム
+# 🤖 Claude Code マルチエージェント通信システム
 
-複数のAIが協力して働く、まるで会社のような開発システムです
+**複数のAIエージェントが協力して開発する、革新的なチーム開発システム**
 
-## 📌 これは何？
+<div align="center">
 
-**3行で説明すると：**
-1. 複数のAIエージェント（社長・マネージャー・作業者）が協力して開発
-2. それぞれ異なるターミナル画面で動作し、メッセージを送り合う
-3. 人間の組織のように役割分担して、効率的に開発を進める
+[![Claude Code](https://img.shields.io/badge/Claude-Code-blue)](https://claude.ai/code)
+[![tmux](https://img.shields.io/badge/tmux-required-green)](https://github.com/tmux/tmux)
+[![License](https://img.shields.io/badge/license-MIT-purple)](LICENSE)
 
-**実際の成果：**
+</div>
+
+## 📌 概要
+
+複数のClaude AIエージェントが、まるで本物の開発チームのように協力してプロジェクトを遂行するシステムです。社長、マネージャー、エンジニアたちが自律的にコミュニケーションを取りながら開発を進めます。
+
+### ✨ 特徴
+
+- 🏢 **階層的チーム構造** - PRESIDENT → boss1 → workers の組織構造
+- 💬 **自律的コミュニケーション** - エージェント間の自動メッセージング
+- 🖥️ **マルチペイン管理** - tmuxによる複数画面の同時管理
+- 🖱️ **マウス操作対応** - クリックでペイン選択、スクロール可能
+- 📊 **リアルタイム監視** - プロジェクト進捗の可視化
+- 🎨 **柔軟なレイアウト** - 画面構成を自由に変更可能
+
+### 🎯 実績
+
 - 3時間で完成したアンケートシステム（EmotiFlow）
 - 12個の革新的アイデアを生成
-- 100%のテストカバレッジ
+- 100%のテストカバレッジ達成
 
-## 🎬 5分で動かしてみよう！
+## 🎯 システム構成図
 
-### 必要なもの
-- Mac または Linux
-- tmux（ターミナル分割ツール）
-- Claude Code CLI
-- （任意）gum または fzf（ダッシュボード用）
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    👑 PRESIDENT                             │
+│              （プロジェクト統括責任者）                      │
+│                         ↓                                   │
+│                    指示・承認                               │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│                    🎯 boss1                                 │
+│                （チームリーダー）                           │
+│                         ↓                                   │
+│               タスク分解・割り当て                          │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌──────────┬──────────┬──────────┬──────────┬──────────────┐
+│ worker1  │ worker2  │ worker3  │ worker4  │  worker5...  │
+│  UI/UX   │   API    │  テスト  │  ドキュメ │   その他     │
+└──────────┴──────────┴──────────┴──────────┴──────────────┘
 
-### 手順
+【通信フロー】
+PRESIDENT → boss1 → workers → boss1 → PRESIDENT
+```
 
-#### 1️⃣ ダウンロード（30秒）
+## 🚀 クイックスタート（5分で開始）
+
+### 前提条件
+
+- **OS**: macOS または Linux
+- **必須ツール**: 
+  - `tmux` - ターミナル分割ツール
+  - `claude` - Claude Code CLI
+- **推奨ツール**: 
+  - `gum` または `fzf` - ダッシュボード用
+
+### インストール確認
+
 ```bash
-git clone https://github.com/nishimoto265/Claude-Code-Communication.git
+# tmuxのインストール確認
+tmux -V  # 出力例: tmux 3.3a
+
+# Claude CLIのインストール確認
+claude --version  # 出力例: claude-cli 0.x.x
+
+# インストールされていない場合
+brew install tmux  # macOS
+# Claude CLIは https://claude.ai/code からインストール
+```
+
+## 📖 セットアップ手順
+
+### STEP 1: リポジトリのクローン
+
+```bash
+git clone https://github.com/yourusername/Claude-Code-Communication.git
 cd Claude-Code-Communication
 ```
 
-#### 2️⃣ 環境構築（1分）
+### STEP 2: 環境構築と起動（推奨方法）
+
+#### 🌟 方法A: ワンコマンド起動（最も簡単）
+
 ```bash
-./setup.sh
-```
-- 依存チェック: `tmux` と `claude` コマンドの存在とバージョンを自動確認します
-- エラー時はインストール方法リンクを提示します
-- `NUM_WORKERS` でワーカー数を可変にできます（デフォルト 3）
-  - 例: `NUM_WORKERS=5 ./setup.sh`
-
-これでバックグラウンドに5つのターミナル画面が準備されます！
-
-#### 3️⃣ 社長画面を開いてAI起動（2分）
-
-**社長画面を開く：**
-```bash
-tmux attach-session -t president
-```
-
-**社長画面でClaudeを起動：**
-```bash
-# ブラウザで認証が必要
-claude --dangerously-skip-permissions
-```
-
-#### 4️⃣ 部下たちを一括起動（1分）
-
-新しいターミナルで：
-```bash
-# 既定（Claude）
-./launch-agents.sh -y
-
-# ほかのモデル/クライアントを使う例（マルチモデル対応）
-AGENT_CMD="claude" AGENT_ARGS="--dangerously-skip-permissions" ./launch-agents.sh -y
-# OpenAI やローカルLLMなどに差し替えも可
-```
-- `NUM_WORKERS` を合わせて設定すると、起動対象も自動で増減します
-
-NUM_WORKERSと同時指定の例:
-```bash
-NUM_WORKERS=5 AGENT_CMD="claude" AGENT_ARGS="--dangerously-skip-permissions" ./launch-agents.sh -y
-```
-
-## 🚀 起動パターン別クイックスタート（おすすめ）
-以下のどれかを選んで実行してください（自動で役割を割当します）。
-```bash
-# A) コア（4人）で開始
+# 4人構成（基本チーム）で自動起動
 ./start-profile.sh --profile core --yes --assign
 
-# B) フル（8人）で開始
+# または8人構成（フルチーム）で自動起動
 ./start-profile.sh --profile full --yes --assign
+```
 
-# C) 任意人数（例: 6人）で開始
+これだけで：
+✅ tmuxセッション作成
+✅ Claude起動
+✅ 役割自動割り当て
+✅ ブラウザ認証画面表示
+
+#### 🔧 方法B: カスタム人数で起動
+
+```bash
+# 6人のチームで起動
 ./start-profile.sh --profile core --workers 6 --yes --assign
 
-# D) フルを人数上書き（例: 10人）で開始
+# 10人の大規模チームで起動
 ./start-profile.sh --profile full --workers 10 --yes --assign
 ```
-メモ: `start-profile.sh` は `--workers` を優先します。環境変数 `NUM_WORKERS` を使う従来手順も可能ですが、プロファイル利用時は `--workers` を推奨します。
 
-## 🧭 役割別スラッシュコマンド（/sc）
-Claude Code上で、次のように役割ガイドを呼び出せます。
-```
-/sc:president:guide
-/sc:boss1:guide
-/sc:worker:guide
-```
-- コマンド定義は `.claude/commands/` に配置（サブディレクトリが名前空間）
+### STEP 3: ブラウザ認証
 
-## 🧑‍💼 画面ごとの操作（何を実行するか）
-- 社長（`president` セッション）
-  1. 初回のみブラウザ認証を完了（自動送信された `claude --dangerously-skip-permissions` に応じる）
-  2. 最初の指示を送信（例）：
-     ```
-     あなたはpresidentです。おしゃれな充実したIT企業のホームページを作成して。
-     ```
-     または `/sc:president:guide` でガイド参照
+各エージェントの画面でブラウザ認証を完了します：
 
-- マネージャー（`multiagent:0.0` = boss1）
-  1. ブラウザ認証を完了
-  2. `--assign` で届く役割割当を確認、必要に応じて微調整（`/sc:boss1:guide` 参照）
-  3. 10分ごとに進捗確認・詰まり解消
-
-- 作業者（`multiagent:0.1+` = worker1..N）
-  1. ブラウザ認証を完了
-  2. boss1 からのタスクを受領し実装開始（`/sc:worker:guide` 参照）
-  3. 完了報告や質問は `./agent-send.sh boss1 "[本文]"` で送信
-
-- 便利コマンド
-  - 画面切替: `tmux attach-session -t president` / `tmux attach-session -t multiagent`
-  - エージェント一覧: `./agent-send.sh --list`（tmux構成と連動して動的表示）
-
-## 🏢 登場人物（エージェント）
-
-### 👑 社長（PRESIDENT）
-- **役割**: 全体の方針を決める
-- **特徴**: ユーザーの本当のニーズを理解する天才
-- **口癖**: 「このビジョンを実現してください」
-
-### 🎯 マネージャー（boss1）
-- **役割**: チームをまとめる中間管理職
-- **特徴**: メンバーの創造性を引き出す達人
-- **口癖**: 「革新的なアイデアを3つ以上お願いします」
-
-### 👷 作業者たち（worker1, 2, 3）
-- **worker1**: デザイン担当（UI/UX）
-- **worker2**: データ処理担当
-- **worker3**: テスト担当
-
-## 💬 どうやってコミュニケーションする？
-
-### メッセージの送り方
 ```bash
-./agent-send.sh [相手の名前] "[メッセージ]"
+# 画面を確認
+tmux attach-session -t multiagent
 
-# 例：マネージャーに送る
-./agent-send.sh boss1 "新しいプロジェクトです"
+# ペイン間の移動
+- マウスクリック（推奨）
+- Ctrl+b → 矢印キー
 
-# 例：作業者1に送る
-./agent-send.sh worker1 "UIを作ってください"
-```
-- `./agent-send.sh --list` は tmux の実ペイン/`NUM_WORKERS` に連動して動的に変化します
-
-### 実際のやり取りの例
-
-**社長 → マネージャー：**
-```
-あなたはboss1です。
-
-【プロジェクト名】アンケートシステム開発
-
-【ビジョン】
-誰でも簡単に使えて、結果がすぐ見られるシステム
-
-【成功基準】
-- 3クリックで回答完了
-- リアルタイムで結果表示
-
-革新的なアイデアで実現してください。
+# 各ペインで認証を完了
 ```
 
-**マネージャー → 作業者：**
-```
-あなたはworker1です。
+### STEP 4: プロジェクト開始
 
-【プロジェクト】アンケートシステム
-
-【チャレンジ】
-UIデザインの革新的アイデアを3つ以上提案してください。
-
-【フォーマット】
-1. アイデア名：[キャッチーな名前]
-   概要：[説明]
-   革新性：[何が新しいか]
-```
-
-## 📁 重要なファイルの説明
-
-### 指示書（instructions/）
-各エージェントの行動マニュアルです
-
-**president.md** - 社長の指示書
-```markdown
-# あなたの役割
-最高の経営者として、ユーザーのニーズを理解し、
-ビジョンを示してください
-
-# ニーズの5層分析
-1. 表層：何を作るか
-2. 機能層：何ができるか  
-3. 便益層：何が改善されるか
-4. 感情層：どう感じたいか
-5. 価値層：なぜ重要か
-```
-
-**boss.md** - マネージャーの指示書
-```markdown
-# あなたの役割
-天才的なファシリテーターとして、
-チームの創造性を最大限に引き出してください
-
-# 10分ルール
-10分ごとに進捗を確認し、
-困っているメンバーをサポートします
-```
-
-**worker.md** - 作業者の指示書
-```markdown
-# あなたの役割
-専門性を活かして、革新的な実装をしてください
-
-# タスク管理
-1. やることリストを作る
-2. 順番に実行
-3. 完了したら報告
-```
-
-### CLAUDE.md
-システム全体の設定ファイル
-```markdown
-# Agent Communication System
-
-## エージェント構成
-- PRESIDENT: 統括責任者
-- boss1: チームリーダー  
-- worker1,2,3: 実行担当
-
-## メッセージ送信
-./agent-send.sh [相手] "[メッセージ]"
-```
-
-## 🔧 困ったときは
-
-### Q: エージェントが反応しない
 ```bash
-# 状態を確認
-tmux ls
+# PRESIDENTに最初の指示を送信
+./agent-send.sh president "あなたはpresidentです。
+タスク管理アプリを作ってください。
+要件：
+- タスクの追加・削除・完了機能
+- 優先度管理
+- シンプルで美しいUI"
+```
+
+## 🖥️ 画面操作ガイド
+
+### マウス操作（有効化済み）
+
+| 操作 | 説明 |
+|------|------|
+| **クリック** | ペインを選択 |
+| **スクロール** | ログを上下にスクロール |
+| **ドラッグ** | テキスト選択（コピー可能） |
+| **境界線ドラッグ** | ペインサイズ変更 |
+
+### キーボードショートカット
+
+| ショートカット | 機能 |
+|----------------|------|
+| `Ctrl+b → z` | 現在のペインを最大化/元に戻す |
+| `Ctrl+b → g` | グリッドレイアウト |
+| `Ctrl+b → f` | フォーカスレイアウト（boss1強調） |
+| `Ctrl+b → v` | 縦分割レイアウト |
+| `Ctrl+b → d` | tmuxから離脱（セッション継続） |
+| `Ctrl+b → 矢印` | ペイン間移動 |
+
+## 🎨 画面レイアウト管理
+
+### 個別エージェント表示
+
+```bash
+# 特定のエージェントを全画面表示
+./view-agent.sh boss1       # boss1のみ表示
+./view-agent.sh worker1     # worker1のみ表示
+
+# 利用可能なエージェント確認
+./view-agent.sh --list
+
+# 全員を均等表示に戻す
+./view-agent.sh --all
+
+# 自動巡回（5秒ごと）
+./view-agent.sh --cycle
+```
+
+### レイアウト切り替え
+
+```bash
+# boss1を大きく表示（推奨）
+./tmux-layout.sh focus
+
+# グリッド表示
+./tmux-layout.sh grid
+
+# 縦並び（狭い画面向け）
+./tmux-layout.sh vertical
+```
+
+## 💬 エージェント間通信
+
+### メッセージ送信
+
+```bash
+# 基本構文
+./agent-send.sh [宛先] "[メッセージ]"
+
+# 例：boss1への指示
+./agent-send.sh boss1 "進捗を報告してください"
+
+# 例：worker1への質問
+./agent-send.sh worker1 "UIの実装状況は？"
+
+# 利用可能なエージェント一覧
+./agent-send.sh --list
+```
+
+### 通信フローの例
+
+```
+1. PRESIDENT → boss1
+   "ECサイトの検索機能を改善してください"
+   ↓
+2. boss1 → workers
+   "worker1: UI改善"
+   "worker2: API最適化"
+   "worker3: テスト作成"
+   ↓
+3. workers → boss1
+   "タスク完了しました"
+   ↓
+4. boss1 → PRESIDENT
+   "プロジェクト完了報告"
+```
+
+## 📊 プロジェクト管理
+
+### ステータス確認
+
+```bash
+# プロジェクト状態確認
+./project-status.sh
+
+# ダッシュボード起動（gum/fzf必要）
+./dashboard.sh
+
+# ログ監視
+tail -f logs/send_log.txt
+```
+
+### Claude起動管理
+
+```bash
+# 起動状態確認
+./start-claude.sh --check
+
+# 全エージェント起動
+./start-claude.sh
 
 # 再起動
-./setup.sh
+./start-claude.sh --restart
+
+# 特定エージェントのみ
+./start-claude.sh --workers  # workersのみ
+./start-claude.sh --boss     # boss1のみ
 ```
 
-### Q: メッセージが届かない
-```bash
-# ログを見る
-cat logs/send_log.txt
+## 🛠️ 役割別ガイド
 
-# 手動でテスト
-./agent-send.sh boss1 "テスト"
+### 各エージェントの役割
+
+| エージェント | 役割 | 責任範囲 |
+|-------------|------|----------|
+| **PRESIDENT** | 統括責任者 | ビジョン策定、最終承認、品質保証 |
+| **boss1** | チームリーダー | タスク分解、進捗管理、技術判断 |
+| **worker1** | UI/UX担当 | デザイン、フロントエンド実装 |
+| **worker2** | API担当 | バックエンド、データベース設計 |
+| **worker3** | テスト担当 | 単体テスト、品質保証 |
+| **worker4** | ドキュメント担当 | README、技術文書作成 |
+| **worker5+** | 拡張メンバー | 性能改善、セキュリティ等 |
+
+### スラッシュコマンド（Claude Code内）
+
+```bash
+# 役割別ガイドを表示
+/sc:president:guide  # PRESIDENT向けガイド
+/sc:boss1:guide     # boss1向けガイド
+/sc:worker:guide    # worker向けガイド
 ```
 
-### Q: 最初からやり直したい
+## 🔧 トラブルシューティング
+
+### よくある問題と解決方法
+
+#### Q: エージェントが反応しない
+
 ```bash
-# 全部リセット
+# Claude起動状態を確認
+./start-claude.sh --check
+
+# 再起動
+./start-claude.sh --restart
+```
+
+#### Q: マウスが効かない
+
+```bash
+# マウス設定を有効化
+./enable-mouse.sh
+
+# tmuxから離脱して再接続
+Ctrl+b → d
+tmux attach-session -t multiagent
+```
+
+#### Q: 画面が見づらい
+
+```bash
+# レイアウト変更
+./tmux-layout.sh focus  # boss1を大きく
+./view-agent.sh boss1    # boss1のみ表示
+```
+
+#### Q: 最初からやり直したい
+
+```bash
+# 全リセット
 tmux kill-server
 rm -rf ./tmp/*
 ./setup.sh
 ```
 
-## 🚀 自分のプロジェクトを作る
-
-### 簡単な例：TODOアプリを作る
-
-社長（PRESIDENT）で入力：
-```
-あなたはpresidentです。
-TODOアプリを作ってください。
-シンプルで使いやすく、タスクの追加・削除・完了ができるものです。
-```
-
-すると自動的に：
-1. マネージャーがタスクを分解
-2. worker1がUI作成
-3. worker2がデータ管理
-4. worker3がテスト作成
-5. 完成！
-
-## 📊 システムの仕組み（図解）
-
-### 画面構成
-```
+## 📁 ファイル構成
 
 ```
+Claude-Code-Communication/
+├── 📜 スクリプト
+│   ├── setup.sh              # 環境構築
+│   ├── start-profile.sh      # プロファイル起動
+│   ├── agent-send.sh         # メッセージ送信
+│   ├── start-claude.sh       # Claude起動管理
+│   ├── view-agent.sh         # 個別表示
+│   ├── tmux-layout.sh        # レイアウト切替
+│   └── enable-mouse.sh       # マウス有効化
+│
+├── 📋 指示書
+│   ├── instructions/
+│   │   ├── president.md      # PRESIDENT指示書
+│   │   ├── boss.md          # boss1指示書
+│   │   └── worker.md        # worker指示書
+│   │
+│   └── .claude/commands/     # スラッシュコマンド定義
+│
+├── 📊 管理
+│   ├── logs/send_log.txt    # 通信ログ
+│   ├── tmp/                 # 一時ファイル
+│   └── CLAUDE.md            # システム設定
+│
+└── 📚 ドキュメント
+    ├── README.md            # 本ファイル
+    └── quality-analysis-report.md  # 品質分析
+```
 
-## 🚀 プロファイル起動（core/full）
-コア→フルへ段階拡張できるランチャーを用意しています。
+## 🎯 実践例：TODOアプリ開発
+
 ```bash
-# コア（4人）で起動
-./start-profile.sh --profile core --yes
+# 1. 環境構築と起動
+./start-profile.sh --profile core --yes --assign
 
-# フル（8人）で起動 + 自動役割割当
-./start-profile.sh --profile full --yes --assign
+# 2. 認証完了後、プロジェクト開始
+./agent-send.sh president "あなたはpresidentです。
+TODOアプリを開発してください。
+要件：
+- タスクのCRUD機能
+- 優先度とカテゴリ管理
+- レスポンシブデザイン
+技術：React + Node.js
+納期：2時間"
 
-# 人数を上書きしたい場合
-./start-profile.sh --profile core --workers 6 --yes
+# 3. 進捗確認（30分後）
+./agent-send.sh boss1 "進捗状況を報告してください"
+
+# 4. 個別確認
+./view-agent.sh worker1  # UI実装を確認
+./view-agent.sh worker2  # API実装を確認
+
+# 5. 完了確認
+./project-status.sh
 ```
+
+## 🤝 貢献
+
+プルリクエストや改善提案を歓迎します！
+
+1. このリポジトリをフォーク
+2. 機能ブランチを作成 (`git checkout -b feature/AmazingFeature`)
+3. 変更をコミット (`git commit -m 'Add AmazingFeature'`)
+4. ブランチにプッシュ (`git push origin feature/AmazingFeature`)
+5. プルリクエストを作成
+
+## 📝 ライセンス
+
+このプロジェクトはMITライセンスの下で公開されています。
+
+## 🙏 謝辞
+
+- Claude AI by Anthropic
+- tmux コミュニティ
+- すべての貢献者の皆様
+
+---
+
+<div align="center">
+<strong>🚀 Happy Multi-Agent Coding! 🚀</strong>
+</div>
