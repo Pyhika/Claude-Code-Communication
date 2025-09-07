@@ -72,26 +72,22 @@ NUM_WORKERSと同時指定の例:
 NUM_WORKERS=5 AGENT_CMD="claude" AGENT_ARGS="--dangerously-skip-permissions" ./launch-agents.sh -y
 ```
 
-#### 5️⃣ ダッシュボード（任意）
+## 🚀 起動パターン別クイックスタート（おすすめ）
+以下のどれかを選んで実行してください（自動で役割を割当します）。
 ```bash
-./dashboard.sh
-```
-- エージェント一覧/状態/最近ログの確認
-- テンプレ選択送信・自由入力送信（`templates/*.txt`）
-- 依存: `gum` または `fzf`（未インストールなら `brew install gum` または `brew install fzf`）
+# A) コア（4人）で開始
+./start-profile.sh --profile core --yes --assign
 
-#### 6️⃣ 魔法の言葉を入力（30秒）
+# B) フル（8人）で開始
+./start-profile.sh --profile full --yes --assign
 
-そして入力：
-```
-あなたはpresidentです。おしゃれな充実したIT企業のホームページを作成して。
-```
+# C) 任意人数（例: 6人）で開始
+./start-profile.sh --profile core --workers 6 --yes --assign
 
-**すると自動的に：**
-1. 社長がマネージャーに指示
-2. マネージャーが3人の作業者に仕事を割り振り
-3. みんなで協力して開発
-4. 完成したら社長に報告
+# D) フルを人数上書き（例: 10人）で開始
+./start-profile.sh --profile full --workers 10 --yes --assign
+```
+メモ: `start-profile.sh` は `--workers` を優先します。環境変数 `NUM_WORKERS` を使う従来手順も可能ですが、プロファイル利用時は `--workers` を推奨します。
 
 ## 🧭 役割別スラッシュコマンド（/sc）
 Claude Code上で、次のように役割ガイドを呼び出せます。
@@ -101,6 +97,29 @@ Claude Code上で、次のように役割ガイドを呼び出せます。
 /sc:worker:guide
 ```
 - コマンド定義は `.claude/commands/` に配置（サブディレクトリが名前空間）
+
+## 🧑‍💼 画面ごとの操作（何を実行するか）
+- 社長（`president` セッション）
+  1. 初回のみブラウザ認証を完了（自動送信された `claude --dangerously-skip-permissions` に応じる）
+  2. 最初の指示を送信（例）：
+     ```
+     あなたはpresidentです。おしゃれな充実したIT企業のホームページを作成して。
+     ```
+     または `/sc:president:guide` でガイド参照
+
+- マネージャー（`multiagent:0.0` = boss1）
+  1. ブラウザ認証を完了
+  2. `--assign` で届く役割割当を確認、必要に応じて微調整（`/sc:boss1:guide` 参照）
+  3. 10分ごとに進捗確認・詰まり解消
+
+- 作業者（`multiagent:0.1+` = worker1..N）
+  1. ブラウザ認証を完了
+  2. boss1 からのタスクを受領し実装開始（`/sc:worker:guide` 参照）
+  3. 完了報告や質問は `./agent-send.sh boss1 "[本文]"` で送信
+
+- 便利コマンド
+  - 画面切替: `tmux attach-session -t president` / `tmux attach-session -t multiagent`
+  - エージェント一覧: `./agent-send.sh --list`（tmux構成と連動して動的表示）
 
 ## 🏢 登場人物（エージェント）
 
