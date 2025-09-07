@@ -67,13 +67,18 @@ AGENT_CMD="claude" AGENT_ARGS="--dangerously-skip-permissions" ./launch-agents.s
 ```
 - `NUM_WORKERS` を合わせて設定すると、起動対象も自動で増減します
 
+NUM_WORKERSと同時指定の例:
+```bash
+NUM_WORKERS=5 AGENT_CMD="claude" AGENT_ARGS="--dangerously-skip-permissions" ./launch-agents.sh -y
+```
+
 #### 5️⃣ ダッシュボード（任意）
 ```bash
 ./dashboard.sh
 ```
 - エージェント一覧/状態/最近ログの確認
 - テンプレ選択送信・自由入力送信（`templates/*.txt`）
-- 依存: `gum` または `fzf`
+- 依存: `gum` または `fzf`（未インストールなら `brew install gum` または `brew install fzf`）
 
 #### 6️⃣ 魔法の言葉を入力（30秒）
 
@@ -87,6 +92,15 @@ AGENT_CMD="claude" AGENT_ARGS="--dangerously-skip-permissions" ./launch-agents.s
 2. マネージャーが3人の作業者に仕事を割り振り
 3. みんなで協力して開発
 4. 完成したら社長に報告
+
+## 🧭 役割別スラッシュコマンド（/sc）
+Claude Code上で、次のように役割ガイドを呼び出せます。
+```
+/sc:president:guide
+/sc:boss1:guide
+/sc:worker:guide
+```
+- コマンド定義は `.claude/commands/` に配置（サブディレクトリが名前空間）
 
 ## 🏢 登場人物（エージェント）
 
@@ -117,6 +131,7 @@ AGENT_CMD="claude" AGENT_ARGS="--dangerously-skip-permissions" ./launch-agents.s
 # 例：作業者1に送る
 ./agent-send.sh worker1 "UIを作ってください"
 ```
+- `./agent-send.sh --list` は tmux の実ペイン/`NUM_WORKERS` に連動して動的に変化します
 
 ### 実際のやり取りの例
 
@@ -256,111 +271,18 @@ TODOアプリを作ってください。
 
 ### 画面構成
 ```
-┌─────────────────┐
-│   PRESIDENT     │ ← 社長の画面（紫色）
-└─────────────────┘
 
-┌────────┬────────┐
-│ boss1  │worker1 │ ← マネージャー（赤）と作業者1（青）
-├────────┼────────┤
-│worker2 │worker3 │ ← 作業者2と3（青）
-└────────┴────────┘
 ```
 
-### コミュニケーションの流れ
+## 🚀 プロファイル起動（core/full）
+コア→フルへ段階拡張できるランチャーを用意しています。
+```bash
+# コア（4人）で起動
+./start-profile.sh --profile core --yes
+
+# フル（8人）で起動 + 自動役割割当
+./start-profile.sh --profile full --yes --assign
+
+# 人数を上書きしたい場合
+./start-profile.sh --profile core --workers 6 --yes
 ```
-社長
- ↓ 「ビジョンを実現して」
-マネージャー
- ↓ 「みんな、アイデア出して」
-作業者たち
- ↓ 「できました！」
-マネージャー
- ↓ 「全員完了です」
-社長
-```
-
-### 進捗管理の仕組み
-```
-./tmp/
-├── worker1_done.txt     # 作業者1が完了したらできるファイル
-├── worker2_done.txt     # 作業者2が完了したらできるファイル
-├── worker3_done.txt     # 作業者3が完了したらできるファイル
-└── worker*_progress.log # 進捗の記録
-```
-
-## 🧩 メッセージテンプレート（簡易スキーマ）
-- ヘッダ（例）:
-```
-[agent-msg]
-project_id: <任意>
-priority: low|normal|high
----
-```
-- 本文は `templates/*.txt` をベースに差し込み可能
-- `./dashboard.sh` からテンプレ選択→差し込み→送信が可能
-
-## ⚙️ カスタマイズ
-- 新しい作業者を追加:
-  1. `NUM_WORKERS` を増やして `./setup.sh` を実行
-  2. 必要に応じて `agent-send.sh` のマッピングを追加
-- マルチモデル対応:
-  - `launch-agents.sh` は `AGENT_CMD` と `AGENT_ARGS` を参照
-  - 例: `AGENT_CMD="claude" AGENT_ARGS="--dangerously-skip-permissions" ./launch-agents.sh -y`
-
-## 🌟 まとめ
-
-このシステムは、複数のAIが協力することで：
-- **3時間**で本格的なWebアプリが完成
-- **12個**の革新的アイデアを生成
-- **100%**のテストカバレッジを実現
-
-ぜひ試してみて、AIチームの力を体験してください！
-
----
-
-**作者**: [GitHub](https://github.com/nishimoto265/Claude-Code-Communication)
-**ライセンス**: MIT
-**質問**: [Issues](https://github.com/nishimoto265/Claude-Code-Communication/issues)へどうぞ！
-
-
-## 参考リンク
-    
-・Claude Code公式   
-　　URL: https://docs.anthropic.com/ja/docs/claude-code/overview   
-    
-・Tmux Cheat Sheet & Quick Reference | Session, window, pane and more     
-　　URL: https://tmuxcheatsheet.com/   
-     
-・Akira-Papa/Claude-Code-Communication   
-　　URL: https://github.com/Akira-Papa/Claude-Code-Communication   
-     
-・【tmuxでClaude CodeのMaxプランでAI組織を動かし放題のローカル環境ができた〜〜〜！ので、やり方をシェア！！🔥🔥🔥🙌☺️】 #AIエージェント - Qiita   
-　　URL: https://qiita.com/akira_papa_AI/items/9f6c6605e925a88b9ac5   
-    
-・Claude Code コマンドチートシート完全ガイド #ClaudeCode - Qiita   
-　　URL: https://qiita.com/akira_papa_AI/items/d68782fbf03ffd9b2f43   
-    
-    
-※以下の情報を参考に、今回のtmuxのClaude Code組織環境を構築することができました。本当にありがとうございました！☺️🙌   
-    
-◇Claude Code双方向通信をシェルで一撃構築できるようにした発案者の元木さん   
-参考GitHub ：   
-haconiwa/README_JA.md at main · dai-motoki/haconiwa  
-　　URL: https://github.com/dai-motoki/haconiwa/blob/main/README_JA.md   
-    
-・神威/KAMUI（@kamui_qai）さん / X   
-　　URL: https://x.com/kamui_qai   
-    
-◇簡単にClaude Code双方向通信環境を構築できるようシェアして頂いたダイコンさん   
-参考GitHub：   
-nishimoto265/Claude-Code-Communication   
-　　URL: https://github.com/nishimoto265/Claude-Code-Communication   
-    
-・ ダイコン（@daikon265）さん / X   
-　　URL: https://x.com/daikon265   
-    
-◇Claude Code公式解説動画：   
-Mastering Claude Code in 30 minutes - YouTube   
-　　URL: https://www.youtube.com/live/6eBSHbLKuN0?t=1356s  
-   

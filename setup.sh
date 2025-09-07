@@ -69,8 +69,8 @@ echo ""
 # STEP 2: multiagentセッション作成（可変ペイン：boss1 + workers）
 log_info "📺 multiagentセッション作成開始 (可変ペイン)..."
 
-# 最初のペイン作成
-tmux new-session -d -s multiagent -n "agents"
+# 最初のペイン作成（十分な仮想サイズを確保）
+tmux new-session -d -s multiagent -n "agents" -x 200 -y 60
 
 # 動的スケール: NUM_WORKERS（デフォルト3）
 NUM_WORKERS=${NUM_WORKERS:-3}
@@ -114,7 +114,7 @@ echo ""
 # STEP 3: presidentセッション作成（1ペイン）
 log_info "👑 presidentセッション作成開始..."
 
-tmux new-session -d -s president
+tmux new-session -d -s president -x 200 -y 60
 tmux send-keys -t president "cd $(pwd)" C-m
 tmux send-keys -t president "export PS1='(\[\033[1;35m\]PRESIDENT\[\033[0m\]) \[\033[1;32m\]\\w\[\033[0m\]\\$ '" C-m
 tmux send-keys -t president "echo '=== PRESIDENT セッション ==='" C-m
@@ -151,6 +151,7 @@ echo "    Pane 0: PRESIDENT (プロジェクト統括)"
 echo ""
 log_success "🎉 Demo環境セットアップ完了！"
 echo ""
+
 echo "📋 次のステップ:"
 echo "  1. 🔗 セッションアタッチ:"
 echo "     tmux attach-session -t multiagent   # マルチエージェント確認"
