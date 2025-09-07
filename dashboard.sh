@@ -30,21 +30,62 @@ mkdir -p "$LOG_DIR" "$TMP_DIR" "$TEMPLATES_DIR"
 list_agents() {
   echo "president|president"
   echo "boss1|multiagent:0.0"
-  # workers は NUM_WORKERS から推測（存在しない場合もとりあえず表示）
-  local n=${NUM_WORKERS:-3}
-  if [ "$n" -lt 1 ]; then n=1; fi
-  for i in $(seq 1 "$n"); do
+  
+  # tmuxセッションから実際のペイン数を動的に取得
+  local pane_count=$(tmux list-panes -t multiagent:0 -F "#{pane_index}" 2>/dev/null | wc -l | tr -d ' ')
+  
+  if [ -n "$pane_count" ] && [ "$pane_count" -gt 1 ]; then
+    # boss1(pane 0)を除いた数がworker数
+    local worker_count=$((pane_count - 1))
+  else
+    # tmuxセッションが見つからない場合はNUM_WORKERSまたはデフォルト値を使用
+    local worker_count=${NUM_WORKERS:-3}
+  fi
+  
+  if [ "$worker_count" -lt 1 ]; then worker_count=1; fi
+  
+  for i in $(seq 1 "$worker_count"); do
     echo "worker$i|multiagent:0.$i"
   done
 }
 
 status_view() {
   echo "【チーム進捗状況】"
-  for i in 1 2 3; do
+  
+  # tmuxセッションから実際のworker数を取得
+  local pane_count=$(tmux list-panes -t multiagent:0 -F "#{pane_index}" 2>/dev/null | wc -l | tr -d ' ')
+  
+  if [ -n "$pane_count" ] && [ "$pane_count" -gt 1 ]; then
+    local worker_count=$((pane_count - 1))
+  else
+    local worker_count=${NUM_WORKERS:-3}
+  fi
+  
+  # 全workerの状態を表示
+  for i in $(seq 1 "$worker_count"); do
     if [ -f "$TMP_DIR/worker${i}_done.txt" ]; then
       echo "Worker$i: ✅ 完了"
     else
       echo "Worker$i: 🔄 作業中"
+    fi
+  done
+  
+  # Claudeの起動状態も確認
+  echo ""
+  echo "【Claude起動状態】"
+  for pane in $(tmux list-panes -t multiagent:0 -F "#{pane_index}:#{pane_title}" 2>/dev/null); do
+    local idx="${pane%%:*}"
+    local title="${pane#*:}"
+    local name="boss1"
+    if [ "$idx" -gt 0 ]; then
+      name="worker$idx"
+    fi
+    
+    # Claudeプロセスの確認
+    if tmux capture-pane -t "multiagent:0.$idx" -p 2>/dev/null | grep -q "claude@"; then
+      echo "$name: ✅ Claude起動中"
+    else
+      echo "$name: ⚠️ Claude未起動"
     fi
   done
 }
