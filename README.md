@@ -20,6 +20,7 @@
 - Mac または Linux
 - tmux（ターミナル分割ツール）
 - Claude Code CLI
+- （任意）gum または fzf（ダッシュボード用）
 
 ### 手順
 
@@ -33,6 +34,11 @@ cd Claude-Code-Communication
 ```bash
 ./setup.sh
 ```
+- 依存チェック: `tmux` と `claude` コマンドの存在とバージョンを自動確認します
+- エラー時はインストール方法リンクを提示します
+- `NUM_WORKERS` でワーカー数を可変にできます（デフォルト 3）
+  - 例: `NUM_WORKERS=5 ./setup.sh`
+
 これでバックグラウンドに5つのターミナル画面が準備されます！
 
 #### 3️⃣ 社長画面を開いてAI起動（2分）
@@ -50,27 +56,24 @@ claude --dangerously-skip-permissions
 
 #### 4️⃣ 部下たちを一括起動（1分）
 
-**新しいターミナルを開いて：**
+新しいターミナルで：
 ```bash
-# 4人の部下を一括起動
-for i in {0..3}; do 
-  tmux send-keys -t multiagent.$i 'claude --dangerously-skip-permissions' C-m
-done
-```
+# 既定（Claude）
+./launch-agents.sh -y
 
-#### 5️⃣ 部下たちの画面を確認
-・各画面でブラウザでのClaude認証が必要な場合あり
+# ほかのモデル/クライアントを使う例（マルチモデル対応）
+AGENT_CMD="claude" AGENT_ARGS="--dangerously-skip-permissions" ./launch-agents.sh -y
+# OpenAI やローカルLLMなどに差し替えも可
+```
+- `NUM_WORKERS` を合わせて設定すると、起動対象も自動で増減します
+
+#### 5️⃣ ダッシュボード（任意）
 ```bash
-tmux attach-session -t multiagent
+./dashboard.sh
 ```
-これで4分割された画面が表示されます：
-```
-┌────────┬────────┐
-│ boss1  │worker1 │
-├────────┼────────┤
-│worker2 │worker3 │
-└────────┴────────┘
-```
+- エージェント一覧/状態/最近ログの確認
+- テンプレ選択送信・自由入力送信（`templates/*.txt`）
+- 依存: `gum` または `fzf`
 
 #### 6️⃣ 魔法の言葉を入力（30秒）
 
@@ -203,29 +206,6 @@ UIデザインの革新的アイデアを3つ以上提案してください。
 ./agent-send.sh [相手] "[メッセージ]"
 ```
 
-## 🎨 実際に作られたもの：EmotiFlow
-
-### 何ができた？
-- 😊 絵文字で感情を表現できるアンケート
-- 📊 リアルタイムで結果が見られる
-- 📱 スマホでも使える
-
-### 試してみる
-```bash
-cd emotiflow-mvp
-python -m http.server 8000
-# ブラウザで http://localhost:8000 を開く
-```
-
-### ファイル構成
-```
-emotiflow-mvp/
-├── index.html    # メイン画面
-├── styles.css    # デザイン
-├── script.js     # 動作ロジック
-└── tests/        # テスト
-```
-
 ## 🔧 困ったときは
 
 ### Q: エージェントが反応しない
@@ -309,55 +289,24 @@ TODOアプリを作ってください。
 └── worker*_progress.log # 進捗の記録
 ```
 
-## 💡 なぜこれがすごいの？
-
-### 従来の開発
+## 🧩 メッセージテンプレート（簡易スキーマ）
+- ヘッダ（例）:
 ```
-人間 → AI → 結果
+[agent-msg]
+project_id: <任意>
+priority: low|normal|high
+---
 ```
+- 本文は `templates/*.txt` をベースに差し込み可能
+- `./dashboard.sh` からテンプレ選択→差し込み→送信が可能
 
-### このシステム
-```
-人間 → AI社長 → AIマネージャー → AI作業者×3 → 統合 → 結果
-```
-
-**メリット：**
-- 並列処理で3倍速い
-- 専門性を活かせる
-- アイデアが豊富
-- 品質が高い
-
-## 🎓 もっと詳しく知りたい人へ
-
-### プロンプトの書き方
-
-**良い例：**
-```
-あなたはboss1です。
-
-【プロジェクト名】明確な名前
-【ビジョン】具体的な理想
-【成功基準】測定可能な指標
-```
-
-**悪い例：**
-```
-何か作って
-```
-
-### カスタマイズ方法
-
-**新しい作業者を追加：**
-1. `instructions/worker4.md`を作成
-2. `setup.sh`を編集してペインを追加
-3. `agent-send.sh`にマッピングを追加
-
-**タイマーを変更：**
-```bash
-# instructions/boss.md の中の
-sleep 600  # 10分を5分に変更するなら
-sleep 300
-```
+## ⚙️ カスタマイズ
+- 新しい作業者を追加:
+  1. `NUM_WORKERS` を増やして `./setup.sh` を実行
+  2. 必要に応じて `agent-send.sh` のマッピングを追加
+- マルチモデル対応:
+  - `launch-agents.sh` は `AGENT_CMD` と `AGENT_ARGS` を参照
+  - 例: `AGENT_CMD="claude" AGENT_ARGS="--dangerously-skip-permissions" ./launch-agents.sh -y`
 
 ## 🌟 まとめ
 

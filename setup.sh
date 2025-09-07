@@ -18,6 +18,41 @@ echo "🤖 Multi-Agent Communication Demo 環境構築"
 echo "==========================================="
 echo ""
 
+# STEP 0: 依存チェック（tmux / claude）
+log_info "🔎 依存関係チェック..."
+check_cmd() {
+    local cmd_name="$1"
+    local version_cmd="$2"
+    if ! command -v "$cmd_name" >/dev/null 2>&1; then
+        echo "❌ 必須コマンドが見つかりません: $cmd_name"
+        case "$cmd_name" in
+            tmux)
+                echo "  👉 インストール例 (macOS): brew install tmux"
+                echo "  👉 ドキュメント: https://tmuxcheatsheet.com/"
+                ;;
+            claude)
+                echo "  👉 Claude Code CLI をインストールしてください"
+                echo "     参考: https://docs.anthropic.com/ja/docs/claude-code/overview"
+                ;;
+        esac
+        exit 1
+    else
+        if [ -n "$version_cmd" ]; then
+            local ver_output
+            ver_output=$(eval "$version_cmd" 2>/dev/null || true)
+            if [ -n "$ver_output" ]; then
+                echo "   - $cmd_name version: $ver_output"
+            else
+                echo "   - $cmd_name は検出されました（バージョン取得不可）"
+            fi
+        fi
+    fi
+}
+check_cmd "tmux" "tmux -V"
+check_cmd "claude" "claude --version"
+log_success "✅ 依存関係 OK"
+echo ""
+
 # STEP 1: 既存セッションクリーンアップ
 log_info "🧹 既存セッションクリーンアップ開始..."
 
@@ -31,40 +66,46 @@ rm -f ./tmp/worker*_done.txt 2>/dev/null && log_info "既存の完了ファイ�
 log_success "✅ クリーンアップ完了"
 echo ""
 
-# STEP 2: multiagentセッション作成（4ペイン：boss1 + worker1,2,3）
-log_info "📺 multiagentセッション作成開始 (4ペイン)..."
+# STEP 2: multiagentセッション作成（可変ペイン：boss1 + workers）
+log_info "📺 multiagentセッション作成開始 (可変ペイン)..."
 
 # 最初のペイン作成
 tmux new-session -d -s multiagent -n "agents"
 
-# 2x2グリッド作成（合計4ペイン）
-tmux split-window -h -t "multiagent:0"      # 水平分割（左右）
-tmux select-pane -t "multiagent:0.0"
-tmux split-window -v                        # 左側を垂直分割
-tmux select-pane -t "multiagent:0.2"
-tmux split-window -v                        # 右側を垂直分割
+# 動的スケール: NUM_WORKERS（デフォルト3）
+NUM_WORKERS=${NUM_WORKERS:-3}
+if [ "$NUM_WORKERS" -lt 1 ]; then NUM_WORKERS=1; fi
+
+# 左右分割（左: boss1, 右: workers 縦積み）
+tmux split-window -h -t "multiagent:0"
+
+if [ "$NUM_WORKERS" -gt 1 ]; then
+    # 右側 0.1 を起点に、(NUM_WORKERS-1) 回 縦分割
+    for _ in $(seq 2 "$NUM_WORKERS"); do
+        tmux select-pane -t "multiagent:0.1"
+        tmux split-window -v -t "multiagent:0.1"
+    done
+fi
 
 # ペインタイトル設定
 log_info "ペインタイトル設定中..."
-PANE_TITLES=("boss1" "worker1" "worker2" "worker3")
 
-for i in {0..3}; do
-    tmux select-pane -t "multiagent:0.$i" -T "${PANE_TITLES[$i]}"
-    
-    # 作業ディレクトリ設定
-    tmux send-keys -t "multiagent:0.$i" "cd $(pwd)" C-m
-    
-    # カラープロンプト設定
-    if [ $i -eq 0 ]; then
-        # boss1: 赤色
-        tmux send-keys -t "multiagent:0.$i" "export PS1='(\[\033[1;31m\]${PANE_TITLES[$i]}\[\033[0m\]) \[\033[1;32m\]\w\[\033[0m\]\$ '" C-m
-    else
-        # workers: 青色
-        tmux send-keys -t "multiagent:0.$i" "export PS1='(\[\033[1;34m\]${PANE_TITLES[$i]}\[\033[0m\]) \[\033[1;32m\]\w\[\033[0m\]\$ '" C-m
-    fi
-    
-    # ウェルカムメッセージ
-    tmux send-keys -t "multiagent:0.$i" "echo '=== ${PANE_TITLES[$i]} エージェント ==='" C-m
+# boss1 設定（左ペイン 0.0）
+tmux select-pane -t "multiagent:0.0" -T "boss1"
+tmux send-keys -t "multiagent:0.0" "cd $(pwd)" C-m
+tmux send-keys -t "multiagent:0.0" "export PS1='(\[\033[1;31m\]boss1\[\033[0m\]) \[\033[1;32m\]\\w\[\033[0m\]\\$ '" C-m
+tmux send-keys -t "multiagent:0.0" "echo '=== boss1 エージェント ==='" C-m
+
+# workers 設定（右ペイン群 0.1+）
+idx=1
+while [ $idx -le $NUM_WORKERS ]; do
+    pane_index=$((idx))
+    title="worker$idx"
+    tmux select-pane -t "multiagent:0.$pane_index" -T "$title" 2>/dev/null || true
+    tmux send-keys -t "multiagent:0.$pane_index" "cd $(pwd)" C-m
+    tmux send-keys -t "multiagent:0.$pane_index" "export PS1='(\[\033[1;34m\]$title\[\033[0m\]) \[\033[1;32m\]\\w\[\033[0m\]\\$ '" C-m
+    tmux send-keys -t "multiagent:0.$pane_index" "echo '=== $title エージェント ==='" C-m
+    idx=$((idx + 1))
 done
 
 log_success "✅ multiagentセッション作成完了"
@@ -75,7 +116,7 @@ log_info "👑 presidentセッション作成開始..."
 
 tmux new-session -d -s president
 tmux send-keys -t president "cd $(pwd)" C-m
-tmux send-keys -t president "export PS1='(\[\033[1;35m\]PRESIDENT\[\033[0m\]) \[\033[1;32m\]\w\[\033[0m\]\$ '" C-m
+tmux send-keys -t president "export PS1='(\[\033[1;35m\]PRESIDENT\[\033[0m\]) \[\033[1;32m\]\\w\[\033[0m\]\\$ '" C-m
 tmux send-keys -t president "echo '=== PRESIDENT セッション ==='" C-m
 tmux send-keys -t president "echo 'プロジェクト統括責任者'" C-m
 tmux send-keys -t president "echo '========================'" C-m
@@ -97,11 +138,12 @@ echo ""
 
 # ペイン構成表示
 echo "📋 ペイン構成:"
-echo "  multiagentセッション（4ペイン）:"
+echo "  multiagentセッション（boss1 + workers）:"
 echo "    Pane 0: boss1     (チームリーダー)"
-echo "    Pane 1: worker1   (実行担当者A)"
-echo "    Pane 2: worker2   (実行担当者B)"
-echo "    Pane 3: worker3   (実行担当者C)"
+for i in $(seq 1 "$NUM_WORKERS"); do
+  echo "    Pane $i: worker$i   (実行担当者)"
+done
+
 echo ""
 echo "  presidentセッション（1ペイン）:"
 echo "    Pane 0: PRESIDENT (プロジェクト統括)"
@@ -117,13 +159,6 @@ echo ""
 echo "  2. 🤖 Claude Code起動:"
 echo "     # 手順1: President認証"
 echo "     tmux send-keys -t president 'claude --dangerously-skip-permissions' C-m"
-echo "     # 手順2: 認証後、multiagent一括起動"
-echo "     for i in {0..3}; do tmux send-keys -t multiagent:0.\$i 'claude --dangerously-skip-permissions' C-m; done"
-echo ""
-echo "  3. 📜 指示書確認:"
-echo "     PRESIDENT: instructions/president.md"
-echo "     boss1: instructions/boss.md"
-echo "     worker1,2,3: instructions/worker.md"
-echo "     システム構造: CLAUDE.md"
-echo ""
-echo "  4. 🎯 デモ実行: PRESIDENTに「あなたはpresidentです。指示書に従って」と入力" 
+echo "     # 手順2: 認証後、multiagent起動（boss1 + workers）"
+echo "     tmux send-keys -t multiagent:0.0 'claude --dangerously-skip-permissions' C-m"
+echo "     for i in $(seq 1 $NUM_WORKERS); do tmux send-keys -t multiagent:0.$i 'claude --dangerously-skip-permissions' C-m; done"

@@ -22,20 +22,27 @@ echo "🤖 AIエージェント一括起動"
 echo "=========================="
 echo ""
 
+# 既定の起動コマンド（マルチモデル対応）
+# 例: AGENT_CMD="claude" AGENT_ARGS="--dangerously-skip-permissions"
+AGENT_CMD=${AGENT_CMD:-claude}
+AGENT_ARGS=${AGENT_ARGS:---dangerously-skip-permissions}
+NUM_WORKERS=${NUM_WORKERS:-3}
+if [ "$NUM_WORKERS" -lt 1 ]; then NUM_WORKERS=1; fi
+
 # セッション存在確認
 check_sessions() {
     local all_exist=true
-    
+
     if ! tmux has-session -t president 2>/dev/null; then
         log_warning "presidentセッションが存在しません"
         all_exist=false
     fi
-    
+
     if ! tmux has-session -t multiagent 2>/dev/null; then
         log_warning "multiagentセッションが存在しません"
         all_exist=false
     fi
-    
+
     if [ "$all_exist" = false ]; then
         echo ""
         echo "❌ 必要なセッションが見つかりません"
@@ -48,9 +55,9 @@ check_sessions() {
 launch_agent() {
     local target=$1
     local name=$2
-    
+
     log_info "$name を起動中..."
-    tmux send-keys -t "$target" 'claude --dangerously-skip-permissions' C-m
+    tmux send-keys -t "$target" "$AGENT_CMD $AGENT_ARGS" C-m
     sleep 0.5
 }
 
@@ -58,35 +65,41 @@ launch_agent() {
 main() {
     # セッション確認
     check_sessions
-    
+
     echo "📋 起動するエージェント:"
     echo "  - PRESIDENT (統括責任者)"
     echo "  - boss1 (チームリーダー)"
-    echo "  - worker1, 2, 3 (実行担当者)"
+    echo "  - worker1..$NUM_WORKERS (実行担当者)"
     echo ""
-    
-    # 起動確認
-    read -p "全エージェントを起動しますか？ (y/N): " confirm
+    echo "💻 起動コマンド: $AGENT_CMD $AGENT_ARGS"
+    echo ""
+
+    # 起動確認（-y/--yes でスキップ）
+    if [[ "$1" == "-y" || "$1" == "--yes" ]]; then
+        confirm="y"
+    else
+        read -p "全エージェントを起動しますか？ (y/N): " confirm
+    fi
     if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
         echo "キャンセルしました"
         exit 0
     fi
-    
+
     echo ""
     log_info "起動を開始します..."
     echo ""
-    
+
     # PRESIDENT起動
     launch_agent "president" "PRESIDENT"
-    
+
     # boss1起動
     launch_agent "multiagent:0.0" "boss1"
-    
+
     # workers起動
-    launch_agent "multiagent:0.1" "worker1"
-    launch_agent "multiagent:0.2" "worker2"
-    launch_agent "multiagent:0.3" "worker3"
-    
+    for i in $(seq 1 "$NUM_WORKERS"); do
+        launch_agent "multiagent:0.$i" "worker$i"
+    done
+
     echo ""
     log_success "✅ 全エージェントの起動コマンドを送信しました"
     echo ""
