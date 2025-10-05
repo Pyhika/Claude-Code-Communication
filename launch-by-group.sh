@@ -8,6 +8,9 @@ set -e
 # スクリプトのディレクトリを取得
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+# 定数読み込み
+source "$SCRIPT_DIR/const/agents.sh"
+
 usage() {
   cat << EOF
 🏗️ グループ別完全自動化システム起動
@@ -93,35 +96,41 @@ launch_management() {
     case "$layout" in
         "tabs")
             # 最初のウィンドウでPRESIDENT
+            local pres_icon=$(get_agent_icon "$AGENT_PRESIDENT")
             osascript << EOF
-$(create_window_with_agent "PRESIDENT" "👑 PRESIDENT" "set bounds of current window to {100, 100, 800, 400}")
+$(create_window_with_agent "$AGENT_PRESIDENT" "$pres_icon $AGENT_PRESIDENT" "set bounds of current window to {100, 100, 800, 400}")
 EOF
             sleep 2
 
             # 同じウィンドウにARCHITECTをタブで追加
+            local arch_icon=$(get_agent_icon "$AGENT_ARCHITECT")
             osascript << EOF
-$(create_tab_with_agent "ARCHITECT" "🏗️ ARCHITECT")
+$(create_tab_with_agent "$AGENT_ARCHITECT" "$arch_icon $AGENT_ARCHITECT")
 EOF
             ;;
         "windows")
             # PRESIDENT
+            local pres_icon=$(get_agent_icon "$AGENT_PRESIDENT")
             osascript << EOF
-$(create_window_with_agent "PRESIDENT" "👑 PRESIDENT" "set bounds of current window to {100, 100, 600, 350}")
+$(create_window_with_agent "$AGENT_PRESIDENT" "$pres_icon $AGENT_PRESIDENT" "set bounds of current window to {100, 100, 600, 350}")
 EOF
             sleep 2
 
             # ARCHITECT
+            local arch_icon=$(get_agent_icon "$AGENT_ARCHITECT")
             osascript << EOF
-$(create_window_with_agent "ARCHITECT" "🏗️ ARCHITECT" "set bounds of current window to {700, 100, 1300, 350}")
+$(create_window_with_agent "$AGENT_ARCHITECT" "$arch_icon $AGENT_ARCHITECT" "set bounds of current window to {700, 100, 1300, 350}")
 EOF
             ;;
         "split")
             # 1つのウィンドウを分割
+            local pres_icon=$(get_agent_icon "$AGENT_PRESIDENT")
             osascript << EOF
-$(create_window_with_agent "PRESIDENT" "👑 PRESIDENT" "set bounds of current window to {100, 100, 800, 500}")
+$(create_window_with_agent "$AGENT_PRESIDENT" "$pres_icon $AGENT_PRESIDENT" "set bounds of current window to {100, 100, 800, 500}")
 EOF
             sleep 2
 
+            local arch_icon=$(get_agent_icon "$AGENT_ARCHITECT")
             osascript << EOF
 tell application "iTerm2"
     tell current window
@@ -130,10 +139,10 @@ tell application "iTerm2"
         end tell
         tell last session
             write text "cd '$SCRIPT_DIR'"
-            write text "'$SCRIPT_DIR/agent-identity.sh' ARCHITECT"
+            write text "'$SCRIPT_DIR/agent-identity.sh' $AGENT_ARCHITECT"
             delay 1
             write text "claude --dangerously-skip-permissions"
-            set name to "🏗️ ARCHITECT"
+            set name to "$arch_icon $AGENT_ARCHITECT"
         end tell
     end tell
 end tell
@@ -149,16 +158,12 @@ launch_workers() {
     local layout="${1:-tabs}"
     echo "🛠️ 実装グループ起動中..."
 
-    declare -a workers=(
-        "FRONTEND:🎨 FRONTEND"
-        "BACKEND:⚙️ BACKEND"
-        "DATABASE:🗄️ DATABASE"
-        "SECURITY:🔒 SECURITY"
-        "TESTING:🧪 TESTING"
-        "DEPLOY:🚀 DEPLOY"
-        "DOCS:📚 DOCS"
-        "QA:🔍 QA"
-    )
+    # 定数から実装グループを構築
+    declare -a workers=()
+    for agent in "${WORKER_AGENTS[@]}"; do
+        local icon=$(get_agent_icon "$agent")
+        workers+=("$agent:$icon $agent")
+    done
 
     case "$layout" in
         "tabs")
@@ -195,8 +200,9 @@ EOF
             ;;
         "split")
             # 2x4分割レイアウト
+            IFS=':' read -ra first_worker <<< "${workers[0]}"
             osascript << EOF
-$(create_window_with_agent "FRONTEND" "🎨 FRONTEND" "set bounds of current window to {900, 100, 1600, 700}")
+$(create_window_with_agent "${first_worker[0]}" "${first_worker[1]}" "set bounds of current window to {900, 100, 1600, 700}")
 EOF
             sleep 2
 
@@ -232,35 +238,38 @@ launch_reviewers() {
     local layout="${1:-tabs}"
     echo "🔍 レビューグループ起動中..."
 
+    local rev_a_icon=$(get_agent_icon "$AGENT_REVIEWER_A")
+    local rev_b_icon=$(get_agent_icon "$AGENT_REVIEWER_B")
+
     case "$layout" in
         "tabs")
             # REVIEWER_A
             osascript << EOF
-$(create_window_with_agent "REVIEWER_A" "🔍 REVIEWER_A" "set bounds of current window to {100, 400, 800, 700}")
+$(create_window_with_agent "$AGENT_REVIEWER_A" "$rev_a_icon $AGENT_REVIEWER_A" "set bounds of current window to {100, 400, 800, 700}")
 EOF
             sleep 2
 
             # REVIEWER_B
             osascript << EOF
-$(create_tab_with_agent "REVIEWER_B" "🛡️ REVIEWER_B")
+$(create_tab_with_agent "$AGENT_REVIEWER_B" "$rev_b_icon $AGENT_REVIEWER_B")
 EOF
             ;;
         "windows")
             # REVIEWER_A
             osascript << EOF
-$(create_window_with_agent "REVIEWER_A" "🔍 REVIEWER_A" "set bounds of current window to {100, 400, 600, 650}")
+$(create_window_with_agent "$AGENT_REVIEWER_A" "$rev_a_icon $AGENT_REVIEWER_A" "set bounds of current window to {100, 400, 600, 650}")
 EOF
             sleep 2
 
             # REVIEWER_B
             osascript << EOF
-$(create_window_with_agent "REVIEWER_B" "🛡️ REVIEWER_B" "set bounds of current window to {700, 400, 1300, 650}")
+$(create_window_with_agent "$AGENT_REVIEWER_B" "$rev_b_icon $AGENT_REVIEWER_B" "set bounds of current window to {700, 400, 1300, 650}")
 EOF
             ;;
         "split")
             # 1つのウィンドウを分割
             osascript << EOF
-$(create_window_with_agent "REVIEWER_A" "🔍 REVIEWER_A" "set bounds of current window to {100, 400, 800, 700}")
+$(create_window_with_agent "$AGENT_REVIEWER_A" "$rev_a_icon $AGENT_REVIEWER_A" "set bounds of current window to {100, 400, 800, 700}")
 EOF
             sleep 2
 
@@ -272,10 +281,10 @@ tell application "iTerm2"
         end tell
         tell last session
             write text "cd '$SCRIPT_DIR'"
-            write text "'$SCRIPT_DIR/agent-identity.sh' REVIEWER_B"
+            write text "'$SCRIPT_DIR/agent-identity.sh' $AGENT_REVIEWER_B"
             delay 1
             write text "claude --dangerously-skip-permissions"
-            set name to "🛡️ REVIEWER_B"
+            set name to "$rev_b_icon $AGENT_REVIEWER_B"
         end tell
     end tell
 end tell

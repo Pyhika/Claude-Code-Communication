@@ -2,45 +2,30 @@
 
 # 🚀 Agent間メッセージ送信スクリプト
 
-# エージェント→tmuxターゲット マッピング（動的対応）
+# 定数読み込み
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/const/agents.sh"
+
+# エージェント→tmuxターゲット マッピング（定数ベース）
 get_agent_target() {
     local name="$1"
-    case "$name" in
-        "president"|"PRESIDENT") echo "president" ;;
-        "boss1"|"BOSS1"|"architect"|"ARCHITECT") echo "multiagent:0.0" ;;
 
-        # 新システム: 専門エージェント名 → workerマッピング
-        "frontend"|"FRONTEND") echo "multiagent:0.1" ;;
-        "backend"|"BACKEND") echo "multiagent:0.2" ;;
-        "database"|"DATABASE") echo "multiagent:0.3" ;;
-        "security"|"SECURITY") echo "multiagent:0.4" ;;
-        "testing"|"TESTING") echo "multiagent:0.5" ;;
-        "deploy"|"DEPLOY") echo "multiagent:0.6" ;;
-        "docs"|"DOCS") echo "multiagent:0.7" ;;
-        "qa"|"QA") echo "multiagent:0.8" ;;
+    # 名前の正規化（大文字小文字、レガシー名対応）
+    local normalized
+    normalized=$(normalize_agent_name "$name")
 
-        # レビューグループ
-        "reviewer_a"|"REVIEWER_A") echo "reviewer_a" ;;
-        "reviewer_b"|"REVIEWER_B") echo "reviewer_b" ;;
-
-        # 旧システム: worker番号
-        worker*)
-            # workerN を動的に multiagent:0.N に解決
-            if [[ "$name" =~ ^worker([0-9]+)$ ]]; then
-                local idx="${BASH_REMATCH[1]}"
-                echo "multiagent:0.$idx"
-            else
-                echo ""
-            fi
-            ;;
-
-        # tmuxターゲット直接指定（後方互換）
-        multiagent:*)
+    if [[ -z "$normalized" ]]; then
+        # 正規化できない場合、tmuxターゲット直接指定かも
+        if [[ "$name" == multiagent:* ]] || [[ "$name" == president ]] || [[ "$name" == reviewer_* ]]; then
             echo "$name"
-            ;;
+            return 0
+        fi
+        echo ""
+        return 1
+    fi
 
-        *) echo "" ;;
-    esac
+    # 正規化された名前からtmuxターゲット取得
+    get_tmux_target "$normalized"
 }
 
 show_usage() {
@@ -55,70 +40,74 @@ show_usage() {
   現在の起動状況に応じて動的に表示されます（--list を参照）。
 
 使用例:
-  $0 president "指示書に従って"
-  $0 architect "システム設計を開始"
-  $0 FRONTEND "UI実装を開始してください"
+  $0 $AGENT_PRESIDENT "指示書に従って"
+  $0 $AGENT_ARCHITECT "システム設計を開始"
+  $0 $AGENT_FRONTEND "UI実装を開始してください"
   $0 worker1 "作業完了しました"  # 旧形式も使用可能
 EOF
 }
 
-# エージェント一覧表示（tmux の実態に基づく。未起動なら NUM_WORKERS fallback）
+# エージェント一覧表示（tmux の実態に基づく）
 show_agents() {
     echo "📋 利用可能なエージェント:"
     echo "=========================="
 
-    # president
-    if tmux has-session -t president 2>/dev/null; then
-        echo "  president / PRESIDENT → president      (👑 プロジェクト統括責任者)"
+    # 統括グループ
+    echo ""
+    echo "【統括グループ】"
+
+    # PRESIDENT
+    if tmux has-session -t "$TMUX_PRESIDENT" 2>/dev/null; then
+        echo "  $AGENT_PRESIDENT → $(get_agent_icon "$AGENT_PRESIDENT") $(get_agent_desc "$AGENT_PRESIDENT")"
     else
-        echo "  president / PRESIDENT → president      (👑 プロジェクト統括責任者) [未起動かも]"
+        echo "  $AGENT_PRESIDENT → $(get_agent_icon "$AGENT_PRESIDENT") $(get_agent_desc "$AGENT_PRESIDENT") [未起動]"
     fi
+
+    # ARCHITECT
+    if tmux has-session -t multiagent 2>/dev/null; then
+        echo "  $AGENT_ARCHITECT → $(get_agent_icon "$AGENT_ARCHITECT") $(get_agent_desc "$AGENT_ARCHITECT")"
+    else
+        echo "  $AGENT_ARCHITECT → $(get_agent_icon "$AGENT_ARCHITECT") $(get_agent_desc "$AGENT_ARCHITECT") [未起動]"
+    fi
+
+    # 実装グループ
+    echo ""
+    echo "【実装グループ】"
 
     if tmux has-session -t multiagent 2>/dev/null; then
-        # multiagent:0 のペイン番号一覧を取得（ポータブル実装）
-        panes_str=$(tmux list-panes -t multiagent:0 -F "#{pane_index}" 2>/dev/null | sort -n)
-        if [ -n "$panes_str" ]; then
-            # 新システム用の専門エージェント名マッピング
-            local role_names=("architect/ARCHITECT" "FRONTEND/frontend" "BACKEND/backend" "DATABASE/database" "SECURITY/security" "TESTING/testing" "DEPLOY/deploy" "DOCS/docs" "QA/qa")
-            local role_desc=("🏗️ 設計統括" "🎨 UI/UX実装" "⚙️ API/サーバー" "🗄️ データモデル" "🔒 セキュリティ" "🧪 テスト" "🚀 デプロイ" "📚 ドキュメント" "🔍 品質保証")
-
-            for p in $panes_str; do
-                if [ "$p" = "0" ]; then
-                    echo "  boss1 / ${role_names[0]} → multiagent:0.0  (${role_desc[0]})"
-                elif [ "$p" -ge 1 ] && [ "$p" -le 8 ]; then
-                    echo "  worker$p / ${role_names[$p]} → multiagent:0.$p  (${role_desc[$p]})"
-                else
-                    echo "  worker$p   → multiagent:0.$p  (実行担当者)"
-                fi
-            done
-            return
-        fi
-        # ペインが取れない場合は fallback
+        for agent in "${WORKER_AGENTS[@]}"; do
+            local icon=$(get_agent_icon "$agent")
+            local desc=$(get_agent_desc "$agent")
+            echo "  $agent → $icon $desc"
+        done
+    else
+        for agent in "${WORKER_AGENTS[@]}"; do
+            local icon=$(get_agent_icon "$agent")
+            local desc=$(get_agent_desc "$agent")
+            echo "  $agent → $icon $desc [未起動]"
+        done
     fi
-
-    # Fallback: NUM_WORKERS または 8 (新システムデフォルト)
-    local n=${NUM_WORKERS:-8}
-    if [ "$n" -lt 1 ]; then n=1; fi
-
-    echo "  boss1 / architect → multiagent:0.0  (🏗️ 設計統括)"
-
-    local role_names=("FRONTEND" "BACKEND" "DATABASE" "SECURITY" "TESTING" "DEPLOY" "DOCS" "QA")
-    local role_desc=("🎨 UI/UX" "⚙️ API" "🗄️ データ" "🔒 セキュリティ" "🧪 テスト" "🚀 デプロイ" "📚 ドキュメント" "🔍 品質保証")
-
-    for i in $(seq 1 "$n"); do
-        if [ "$i" -le 8 ]; then
-            echo "  worker$i / ${role_names[$((i-1))]} → multiagent:0.$i  (${role_desc[$((i-1))]})"
-        else
-            echo "  worker$i   → multiagent:0.$i  (実行担当者)"
-        fi
-    done
 
     # レビューグループ
     echo ""
-    echo "  REVIEWER_A / reviewer_a → reviewer_a  (🔍 品質レビュー)"
-    echo "  REVIEWER_B / reviewer_b → reviewer_b  (🛡️ セキュリティレビュー)"
+    echo "【レビューグループ】"
 
-    echo "  [注] multiagent セッションが未起動か、ペイン情報を取得できませんでした"
+    for agent in "${REVIEWER_AGENTS[@]}"; do
+        local tmux_target=$(get_tmux_target "$agent")
+        local icon=$(get_agent_icon "$agent")
+        local desc=$(get_agent_desc "$agent")
+
+        if tmux has-session -t "$tmux_target" 2>/dev/null; then
+            echo "  $agent → $icon $desc"
+        else
+            echo "  $agent → $icon $desc [未起動]"
+        fi
+    done
+
+    echo ""
+    echo "【レガシー名】"
+    echo "  worker1-8 (FRONTEND-QA に対応)"
+    echo "  boss1 (ARCHITECT に対応)"
 }
 
 # ログ記録
@@ -127,8 +116,8 @@ log_send() {
     local message="$2"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
-    mkdir -p logs
-    echo "[$timestamp] $agent: SENT - \"$message\"" >> logs/send_log.txt
+    mkdir -p "$SCRIPT_DIR/logs"
+    echo "[$timestamp] $agent: SENT - \"$message\"" >> "$SCRIPT_DIR/logs/send_log.txt"
 }
 
 # メッセージ送信

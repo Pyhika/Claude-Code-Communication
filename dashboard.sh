@@ -5,6 +5,12 @@
 
 set -e
 
+# スクリプトのディレクトリを取得
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 定数読み込み
+source "$SCRIPT_DIR/const/agents.sh"
+
 # 設定
 LOG_DIR="logs"
 TMP_DIR="tmp"
@@ -28,63 +34,46 @@ fi
 mkdir -p "$LOG_DIR" "$TMP_DIR" "$TEMPLATES_DIR"
 
 list_agents() {
-  echo "president|👑 PRESIDENT (統括責任者)"
-  echo "architect|🏗️ ARCHITECT (設計統括)"
+  # 統括グループ
+  local pres_icon=$(get_agent_icon "$AGENT_PRESIDENT")
+  local pres_desc=$(get_agent_desc "$AGENT_PRESIDENT")
+  echo "president|$pres_icon $AGENT_PRESIDENT ($pres_desc)"
 
-  # tmuxセッションから実際のペイン数を動的に取得
-  local pane_count=$(tmux list-panes -t multiagent:0 -F "#{pane_index}" 2>/dev/null | wc -l | tr -d ' ')
+  local arch_icon=$(get_agent_icon "$AGENT_ARCHITECT")
+  local arch_desc=$(get_agent_desc "$AGENT_ARCHITECT")
+  echo "architect|$arch_icon $AGENT_ARCHITECT ($arch_desc)"
 
-  if [ -n "$pane_count" ] && [ "$pane_count" -gt 1 ]; then
-    # boss1(pane 0)を除いた数がworker数
-    local worker_count=$((pane_count - 1))
-  else
-    # tmuxセッションが見つからない場合はNUM_WORKERSまたはデフォルト値を使用
-    local worker_count=${NUM_WORKERS:-8}
-  fi
+  # 実装グループ（定数から動的生成）
+  for agent in "${WORKER_AGENTS[@]}"; do
+    local internal=$(get_internal_name "$agent")
+    local icon=$(get_agent_icon "$agent")
+    local desc=$(get_agent_desc "$agent")
+    echo "$internal|$icon $agent ($desc)"
+  done
 
-  if [ "$worker_count" -lt 1 ]; then worker_count=1; fi
-
-  # 新システム: 専門エージェント名
-  local role_names=("FRONTEND" "BACKEND" "DATABASE" "SECURITY" "TESTING" "DEPLOY" "DOCS" "QA")
-  local role_icons=("🎨" "⚙️" "🗄️" "🔒" "🧪" "🚀" "📚" "🔍")
-  local role_desc=("UI/UX実装" "API/サーバー" "データモデル" "セキュリティ" "テスト実装" "デプロイ" "ドキュメント" "品質保証")
-
-  for i in $(seq 1 "$worker_count"); do
-    if [ "$i" -le 8 ]; then
-      echo "${role_names[$((i-1))]}|${role_icons[$((i-1))]} ${role_names[$((i-1))]} (${role_desc[$((i-1))]})"
-    else
-      echo "worker$i|👷 worker$i (実行担当者)"
-    fi
+  # レビューグループ
+  for agent in "${REVIEWER_AGENTS[@]}"; do
+    local internal=$(get_internal_name "$agent")
+    local icon=$(get_agent_icon "$agent")
+    local desc=$(get_agent_desc "$agent")
+    echo "$internal|$icon $agent ($desc)"
   done
 }
 
 status_view() {
   echo "【チーム進捗状況】"
 
-  # tmuxセッションから実際のworker数を取得
-  local pane_count=$(tmux list-panes -t multiagent:0 -F "#{pane_index}" 2>/dev/null | wc -l | tr -d ' ')
-
-  if [ -n "$pane_count" ] && [ "$pane_count" -gt 1 ]; then
-    local worker_count=$((pane_count - 1))
-  else
-    local worker_count=${NUM_WORKERS:-8}
-  fi
-
-  # 専門エージェント名
-  local role_names=("FRONTEND" "BACKEND" "DATABASE" "SECURITY" "TESTING" "DEPLOY" "DOCS" "QA")
-  local role_icons=("🎨" "⚙️" "🗄️" "🔒" "🧪" "🚀" "📚" "🔍")
-
-  # 全workerの状態を表示（ペインの最終行をチェック）
-  for i in $(seq 1 "$worker_count"); do
+  # 実装グループの状態表示（定数から動的生成）
+  local idx=1
+  for agent in "${WORKER_AGENTS[@]}"; do
+    local icon=$(get_agent_icon "$agent")
+    local internal=$(get_internal_name "$agent")
     local last_activity=""
-    local last_line=$(tmux capture-pane -t "multiagent:0.$i" -p 2>/dev/null | tail -n 5 | grep -v "^$" | tail -n 1)
+    local last_line=$(tmux capture-pane -t "multiagent:0.$idx" -p 2>/dev/null | tail -n 5 | grep -v "^$" | tail -n 1)
 
-    local agent_name="Worker$i"
-    if [ "$i" -le 8 ]; then
-      agent_name="${role_icons[$((i-1))]} ${role_names[$((i-1))]}"
-    fi
+    local agent_name="$icon $agent"
 
-    if [ -f "$TMP_DIR/worker${i}_done.txt" ]; then
+    if [ -f "$TMP_DIR/${internal}_done.txt" ]; then
       echo "$agent_name: ✅ 完了"
     elif echo "$last_line" | grep -q -E "(完了|✅|Completed|Done)"; then
       echo "$agent_name: ✅ タスク完了"
@@ -93,6 +82,8 @@ status_view() {
     else
       echo "$agent_name: ⏳ 待機中"
     fi
+
+    idx=$((idx + 1))
   done
 
   # プロジェクトディレクトリの状態も確認
