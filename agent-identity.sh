@@ -5,6 +5,27 @@
 
 AGENT="$1"
 
+# 役割名エイリアス（統一命名をworker番号/内部名にマッピング）
+case "$AGENT" in
+  # 統括グループ
+  "PRESIDENT") AGENT="president" ;;
+  "ARCHITECT") AGENT="architect" ;;
+
+  # 実装グループ
+  "FRONTEND") AGENT="worker1" ;;
+  "BACKEND") AGENT="worker2" ;;
+  "DATABASE") AGENT="worker3" ;;
+  "SECURITY") AGENT="worker4" ;;
+  "TESTING") AGENT="worker5" ;;
+  "DEPLOY") AGENT="worker6" ;;
+  "DOCS") AGENT="worker7" ;;
+  "QA") AGENT="worker8" ;;
+
+  # レビューグループ
+  "REVIEWER_A") AGENT="reviewer_a" ;;
+  "REVIEWER_B") AGENT="reviewer_b" ;;
+esac
+
 # カラーコード定義
 RED='\033[0;31m'
 GREEN='\033[0;32m'

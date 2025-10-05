@@ -94,31 +94,31 @@ launch_management() {
         "tabs")
             # 最初のウィンドウでPRESIDENT
             osascript << EOF
-$(create_window_with_agent "president" "👑 PRESIDENT" "set bounds of current window to {100, 100, 800, 400}")
+$(create_window_with_agent "PRESIDENT" "👑 PRESIDENT" "set bounds of current window to {100, 100, 800, 400}")
 EOF
             sleep 2
 
             # 同じウィンドウにARCHITECTをタブで追加
             osascript << EOF
-$(create_tab_with_agent "architect" "🏗️ ARCHITECT")
+$(create_tab_with_agent "ARCHITECT" "🏗️ ARCHITECT")
 EOF
             ;;
         "windows")
             # PRESIDENT
             osascript << EOF
-$(create_window_with_agent "president" "👑 PRESIDENT" "set bounds of current window to {100, 100, 600, 350}")
+$(create_window_with_agent "PRESIDENT" "👑 PRESIDENT" "set bounds of current window to {100, 100, 600, 350}")
 EOF
             sleep 2
 
             # ARCHITECT
             osascript << EOF
-$(create_window_with_agent "architect" "🏗️ ARCHITECT" "set bounds of current window to {700, 100, 1300, 350}")
+$(create_window_with_agent "ARCHITECT" "🏗️ ARCHITECT" "set bounds of current window to {700, 100, 1300, 350}")
 EOF
             ;;
         "split")
             # 1つのウィンドウを分割
             osascript << EOF
-$(create_window_with_agent "president" "👑 PRESIDENT" "set bounds of current window to {100, 100, 800, 500}")
+$(create_window_with_agent "PRESIDENT" "👑 PRESIDENT" "set bounds of current window to {100, 100, 800, 500}")
 EOF
             sleep 2
 
@@ -130,7 +130,7 @@ tell application "iTerm2"
         end tell
         tell last session
             write text "cd '$SCRIPT_DIR'"
-            write text "'$SCRIPT_DIR/agent-identity.sh' architect"
+            write text "'$SCRIPT_DIR/agent-identity.sh' ARCHITECT"
             delay 1
             write text "claude --dangerously-skip-permissions"
             set name to "🏗️ ARCHITECT"
@@ -150,14 +150,14 @@ launch_workers() {
     echo "🛠️ 実装グループ起動中..."
 
     declare -a workers=(
-        "worker1:🎨 FRONTEND"
-        "worker2:⚙️ BACKEND"
-        "worker3:🗄️ DATABASE"
-        "worker4:🔒 SECURITY"
-        "worker5:🧪 TESTING"
-        "worker6:🚀 DEPLOY"
-        "worker7:📚 DOCS"
-        "worker8:🔍 QA"
+        "FRONTEND:🎨 FRONTEND"
+        "BACKEND:⚙️ BACKEND"
+        "DATABASE:🗄️ DATABASE"
+        "SECURITY:🔒 SECURITY"
+        "TESTING:🧪 TESTING"
+        "DEPLOY:🚀 DEPLOY"
+        "DOCS:📚 DOCS"
+        "QA:🔍 QA"
     )
 
     case "$layout" in
@@ -196,7 +196,7 @@ EOF
         "split")
             # 2x4分割レイアウト
             osascript << EOF
-$(create_window_with_agent "worker1" "🎨 FRONTEND" "set bounds of current window to {900, 100, 1600, 700}")
+$(create_window_with_agent "FRONTEND" "🎨 FRONTEND" "set bounds of current window to {900, 100, 1600, 700}")
 EOF
             sleep 2
 
@@ -236,31 +236,31 @@ launch_reviewers() {
         "tabs")
             # REVIEWER_A
             osascript << EOF
-$(create_window_with_agent "reviewer_a" "🔍 REVIEWER_A" "set bounds of current window to {100, 400, 800, 700}")
+$(create_window_with_agent "REVIEWER_A" "🔍 REVIEWER_A" "set bounds of current window to {100, 400, 800, 700}")
 EOF
             sleep 2
 
             # REVIEWER_B
             osascript << EOF
-$(create_tab_with_agent "reviewer_b" "🛡️ REVIEWER_B")
+$(create_tab_with_agent "REVIEWER_B" "🛡️ REVIEWER_B")
 EOF
             ;;
         "windows")
             # REVIEWER_A
             osascript << EOF
-$(create_window_with_agent "reviewer_a" "🔍 REVIEWER_A" "set bounds of current window to {100, 400, 600, 650}")
+$(create_window_with_agent "REVIEWER_A" "🔍 REVIEWER_A" "set bounds of current window to {100, 400, 600, 650}")
 EOF
             sleep 2
 
             # REVIEWER_B
             osascript << EOF
-$(create_window_with_agent "reviewer_b" "🛡️ REVIEWER_B" "set bounds of current window to {700, 400, 1300, 650}")
+$(create_window_with_agent "REVIEWER_B" "🛡️ REVIEWER_B" "set bounds of current window to {700, 400, 1300, 650}")
 EOF
             ;;
         "split")
             # 1つのウィンドウを分割
             osascript << EOF
-$(create_window_with_agent "reviewer_a" "🔍 REVIEWER_A" "set bounds of current window to {100, 400, 800, 700}")
+$(create_window_with_agent "REVIEWER_A" "🔍 REVIEWER_A" "set bounds of current window to {100, 400, 800, 700}")
 EOF
             sleep 2
 
@@ -272,7 +272,7 @@ tell application "iTerm2"
         end tell
         tell last session
             write text "cd '$SCRIPT_DIR'"
-            write text "'$SCRIPT_DIR/agent-identity.sh' reviewer_b"
+            write text "'$SCRIPT_DIR/agent-identity.sh' REVIEWER_B"
             delay 1
             write text "claude --dangerously-skip-permissions"
             set name to "🛡️ REVIEWER_B"
