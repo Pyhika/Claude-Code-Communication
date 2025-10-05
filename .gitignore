@@ -1,7 +1,6 @@
 # ログファイル
 logs/
 *.log
-*.txt
 
 # 一時ファイル
 tmp/
@@ -20,4 +19,17 @@ Thumbs.db
 .idea/
 
 # Claude Code設定
-.claude/settings.local.json 
+.claude/settings.local.json
+.claude/Docs/
+
+# 環境変数
+.env
+.env.local
+.env.*.local
+
+# Node modules (if any)
+node_modules/
+
+# Build outputs
+dist/
+build/ 
