@@ -13,7 +13,20 @@ echo ""
 
 # ステップ1: クリーンアップ
 echo "【ステップ1】既存環境のクリーンアップ"
-if command -v cleanup-iterm.sh &> /dev/null; then
+
+# tmuxセッションクリーンアップ（オプション）
+if [[ "$1" == "--clean" ]] || [[ "$2" == "--clean" ]]; then
+    echo "  🧹 既存tmuxセッションを削除中..."
+    for session in president multiagent reviewer_a reviewer_b; do
+        if tmux has-session -t "$session" 2>/dev/null; then
+            tmux kill-session -t "$session"
+            echo "    ✅ $session セッション削除"
+        fi
+    done
+fi
+
+# iTerm2ウィンドウクリーンアップ
+if [[ -f "./cleanup-iterm.sh" ]]; then
     ./cleanup-iterm.sh
 else
     echo "⚠️ cleanup-iterm.sh が見つかりません（スキップ）"
@@ -88,4 +101,8 @@ echo ""
 echo "📖 詳細なガイド:"
 echo "  cat TEAM_COMMUNICATION.md               # 通信システムガイド"
 echo "  cat CLAUDE.md                           # システム概要"
+echo ""
+echo "🔄 再起動方法:"
+echo "  ./start-system.sh --clean               # tmuxセッションを削除して再起動"
+echo "  ./start-system.sh --clean --multi-space # クリーン再起動（マルチスペース）"
 echo ""

@@ -246,17 +246,27 @@ launch_reviewers() {
     # tmuxセッション作成
     echo "  📦 tmuxセッション作成中..."
 
-    # REVIEWER_A tmuxセッション
-    tmux new-session -d -s "$rev_a_internal" -c "$SCRIPT_DIR"
-    tmux send-keys -t "$rev_a_internal" "./agent-identity.sh $AGENT_REVIEWER_A" C-m
-    sleep 2
-    tmux send-keys -t "$rev_a_internal" "claude --dangerously-skip-permissions" C-m
+    # REVIEWER_A tmuxセッション（既存確認）
+    if tmux has-session -t "$rev_a_internal" 2>/dev/null; then
+        echo "  ⚠️ $rev_a_internal セッションは既に存在します（スキップ）"
+    else
+        tmux new-session -d -s "$rev_a_internal" -c "$SCRIPT_DIR"
+        tmux send-keys -t "$rev_a_internal" "./agent-identity.sh $AGENT_REVIEWER_A" C-m
+        sleep 2
+        tmux send-keys -t "$rev_a_internal" "claude --dangerously-skip-permissions" C-m
+        echo "  ✅ $rev_a_internal セッション作成完了"
+    fi
 
-    # REVIEWER_B tmuxセッション
-    tmux new-session -d -s "$rev_b_internal" -c "$SCRIPT_DIR"
-    tmux send-keys -t "$rev_b_internal" "./agent-identity.sh $AGENT_REVIEWER_B" C-m
-    sleep 2
-    tmux send-keys -t "$rev_b_internal" "claude --dangerously-skip-permissions" C-m
+    # REVIEWER_B tmuxセッション（既存確認）
+    if tmux has-session -t "$rev_b_internal" 2>/dev/null; then
+        echo "  ⚠️ $rev_b_internal セッションは既に存在します（スキップ）"
+    else
+        tmux new-session -d -s "$rev_b_internal" -c "$SCRIPT_DIR"
+        tmux send-keys -t "$rev_b_internal" "./agent-identity.sh $AGENT_REVIEWER_B" C-m
+        sleep 2
+        tmux send-keys -t "$rev_b_internal" "claude --dangerously-skip-permissions" C-m
+        echo "  ✅ $rev_b_internal セッション作成完了"
+    fi
 
     # iTerm2ウィンドウも作成（オプション）
     case "$layout" in
