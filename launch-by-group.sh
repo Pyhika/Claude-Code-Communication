@@ -122,7 +122,7 @@ $(create_window_with_agent "president" "👑 PRESIDENT" "set bounds of current w
 EOF
             sleep 2
 
-            osascript << 'EOF'
+            osascript << EOF
 tell application "iTerm2"
     tell current window
         tell current session
@@ -264,7 +264,7 @@ $(create_window_with_agent "reviewer_a" "🔍 REVIEWER_A" "set bounds of current
 EOF
             sleep 2
 
-            osascript << 'EOF'
+            osascript << EOF
 tell application "iTerm2"
     tell current window
         tell current session
