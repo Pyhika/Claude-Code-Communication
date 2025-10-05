@@ -19,6 +19,10 @@ get_agent_target() {
         "docs"|"DOCS") echo "multiagent:0.7" ;;
         "qa"|"QA") echo "multiagent:0.8" ;;
 
+        # レビューグループ
+        "reviewer_a"|"REVIEWER_A") echo "reviewer_a" ;;
+        "reviewer_b"|"REVIEWER_B") echo "reviewer_b" ;;
+
         # 旧システム: worker番号
         worker*)
             # workerN を動的に multiagent:0.N に解決
@@ -108,6 +112,12 @@ show_agents() {
             echo "  worker$i   → multiagent:0.$i  (実行担当者)"
         fi
     done
+
+    # レビューグループ
+    echo ""
+    echo "  REVIEWER_A / reviewer_a → reviewer_a  (🔍 品質レビュー)"
+    echo "  REVIEWER_B / reviewer_b → reviewer_b  (🛡️ セキュリティレビュー)"
+
     echo "  [注] multiagent セッションが未起動か、ペイン情報を取得できませんでした"
 }
 
