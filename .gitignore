@@ -7,6 +7,9 @@ tmp/
 *.tmp
 *_done.txt
 
+# 作業ディレクトリ（プロジェクト成果物）
+workspace/
+
 # OS固有
 .DS_Store
 Thumbs.db
