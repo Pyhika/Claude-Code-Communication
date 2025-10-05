@@ -28,24 +28,33 @@ fi
 mkdir -p "$LOG_DIR" "$TMP_DIR" "$TEMPLATES_DIR"
 
 list_agents() {
-  echo "president|president"
-  echo "boss1|multiagent:0.0"
-  
+  echo "president|👑 PRESIDENT (統括責任者)"
+  echo "architect|🏗️ ARCHITECT (設計統括)"
+
   # tmuxセッションから実際のペイン数を動的に取得
   local pane_count=$(tmux list-panes -t multiagent:0 -F "#{pane_index}" 2>/dev/null | wc -l | tr -d ' ')
-  
+
   if [ -n "$pane_count" ] && [ "$pane_count" -gt 1 ]; then
     # boss1(pane 0)を除いた数がworker数
     local worker_count=$((pane_count - 1))
   else
     # tmuxセッションが見つからない場合はNUM_WORKERSまたはデフォルト値を使用
-    local worker_count=${NUM_WORKERS:-3}
+    local worker_count=${NUM_WORKERS:-8}
   fi
-  
+
   if [ "$worker_count" -lt 1 ]; then worker_count=1; fi
-  
+
+  # 新システム: 専門エージェント名
+  local role_names=("FRONTEND" "BACKEND" "DATABASE" "SECURITY" "TESTING" "DEPLOY" "DOCS" "QA")
+  local role_icons=("🎨" "⚙️" "🗄️" "🔒" "🧪" "🚀" "📚" "🔍")
+  local role_desc=("UI/UX実装" "API/サーバー" "データモデル" "セキュリティ" "テスト実装" "デプロイ" "ドキュメント" "品質保証")
+
   for i in $(seq 1 "$worker_count"); do
-    echo "worker$i|multiagent:0.$i"
+    if [ "$i" -le 8 ]; then
+      echo "${role_names[$((i-1))]}|${role_icons[$((i-1))]} ${role_names[$((i-1))]} (${role_desc[$((i-1))]})"
+    else
+      echo "worker$i|👷 worker$i (実行担当者)"
+    fi
   done
 }
 
@@ -58,22 +67,31 @@ status_view() {
   if [ -n "$pane_count" ] && [ "$pane_count" -gt 1 ]; then
     local worker_count=$((pane_count - 1))
   else
-    local worker_count=${NUM_WORKERS:-3}
+    local worker_count=${NUM_WORKERS:-8}
   fi
+
+  # 専門エージェント名
+  local role_names=("FRONTEND" "BACKEND" "DATABASE" "SECURITY" "TESTING" "DEPLOY" "DOCS" "QA")
+  local role_icons=("🎨" "⚙️" "🗄️" "🔒" "🧪" "🚀" "📚" "🔍")
 
   # 全workerの状態を表示（ペインの最終行をチェック）
   for i in $(seq 1 "$worker_count"); do
     local last_activity=""
     local last_line=$(tmux capture-pane -t "multiagent:0.$i" -p 2>/dev/null | tail -n 5 | grep -v "^$" | tail -n 1)
 
+    local agent_name="Worker$i"
+    if [ "$i" -le 8 ]; then
+      agent_name="${role_icons[$((i-1))]} ${role_names[$((i-1))]}"
+    fi
+
     if [ -f "$TMP_DIR/worker${i}_done.txt" ]; then
-      echo "Worker$i: ✅ 完了"
+      echo "$agent_name: ✅ 完了"
     elif echo "$last_line" | grep -q -E "(完了|✅|Completed|Done)"; then
-      echo "Worker$i: ✅ タスク完了"
+      echo "$agent_name: ✅ タスク完了"
     elif echo "$last_line" | grep -q -E "(作業中|実装中|Creating|Building|🔄|🚀|📦|🛒)"; then
-      echo "Worker$i: 🔄 作業中"
+      echo "$agent_name: 🔄 作業中"
     else
-      echo "Worker$i: ⏳ 待機中"
+      echo "$agent_name: ⏳ 待機中"
     fi
   done
 
@@ -114,12 +132,12 @@ status_view() {
   fi
 
   # boss1とworkersの状態をチェック
+  local role_names=("ARCHITECT" "FRONTEND" "BACKEND" "DATABASE" "SECURITY" "TESTING" "DEPLOY" "DOCS" "QA")
+  local role_icons=("🏗️" "🎨" "⚙️" "🗄️" "🔒" "🧪" "🚀" "📚" "🔍")
+
   local panes=$(tmux list-panes -t multiagent:0 -F "#{pane_index}" 2>/dev/null | sort -n)
   for idx in $panes; do
-    local name="boss1"
-    if [ "$idx" -ne 0 ]; then
-      name="worker$idx"
-    fi
+    local name="${role_icons[$idx]} ${role_names[$idx]}"
 
     # Claudeプロセスの確認（改善されたパターン）
     local pane_content=$(tmux capture-pane -t "multiagent:0.$idx" -p 2>/dev/null | tail -n 20)
@@ -145,11 +163,35 @@ recent_logs() {
 
         # エージェント名に色を付ける
         case "$agent" in
-          president)
-            agent_display="👑 president"
+          president|PRESIDENT)
+            agent_display="👑 PRESIDENT"
             ;;
-          boss1)
-            agent_display="💼 boss1    "
+          boss1|architect|ARCHITECT)
+            agent_display="🏗️ ARCHITECT"
+            ;;
+          FRONTEND|frontend)
+            agent_display="🎨 FRONTEND "
+            ;;
+          BACKEND|backend)
+            agent_display="⚙️ BACKEND  "
+            ;;
+          DATABASE|database)
+            agent_display="🗄️ DATABASE "
+            ;;
+          SECURITY|security)
+            agent_display="🔒 SECURITY "
+            ;;
+          TESTING|testing)
+            agent_display="🧪 TESTING  "
+            ;;
+          DEPLOY|deploy)
+            agent_display="🚀 DEPLOY   "
+            ;;
+          DOCS|docs)
+            agent_display="📚 DOCS     "
+            ;;
+          QA|qa)
+            agent_display="🔍 QA       "
             ;;
           worker*)
             agent_display="👷 $agent  "

@@ -3,120 +3,134 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## プロジェクト概要
-複数のAIエージェントが協調して開発を行うマルチエージェント通信システム。tmuxセッションを使用して各エージェントを独立したペインで動作させ、相互にメッセージを送信しながらプロジェクトを遂行する。
+1:1:8:2構成のマルチエージェント開発システム。
+macOSスペース分離により、統括・実装・レビューの3グループが独立したスクリーンで協調動作します。
 
-## システムアーキテクチャ
+## システム構成
 
-### エージェント構成
-- **PRESIDENT** (tmux session: president): プロジェクト統括責任者
-  - 要件定義、優先順位決定、品質承認
-- **boss1** (tmux: multiagent:0.0): テックリード
-  - タスク分解、技術判断、進捗管理
-- **worker1-N** (tmux: multiagent:0.1-N): 実行担当
-  - 実装、テスト、ドキュメント作成
+### 🎯 スペース1: 統括グループ (1:1)
+- **PRESIDENT**: AI司令塔、要件解析、最終判定
+- **ARCHITECT**: 設計統括、システム設計、タスク分割
 
-### 通信フロー
-```
-PRESIDENT → boss1 → workers → boss1 → PRESIDENT
-```
+### 🛠️ スペース2: 実装グループ (8)
+- **FRONTEND**: UI/UX実装
+- **BACKEND**: API/サーバーサイド
+- **DATABASE**: データモデル/永続化
+- **SECURITY**: 認証/認可/セキュリティ
+- **TESTING**: テスト実装
+- **DEPLOY**: デプロイ/インフラ
+- **DOCS**: ドキュメント作成
+- **QA**: 品質保証
 
-### 作業ディレクトリ
-- 共通作業場所: `/workspace/[プロジェクト名]`
-- 成果物管理: 全エージェントが同じディレクトリで作業
+### 🔍 スペース3: レビューグループ (2)
+- **REVIEWER_A**: 品質レビュー、コード品質、パフォーマンス
+- **REVIEWER_B**: セキュリティレビュー、脆弱性チェック、安全性確認
 
-## 開発コマンド
+## 基本コマンド
 
-### 環境構築・起動
+### システム起動
 ```bash
-# 環境セットアップ（tmuxセッション作成）
-./setup.sh                              # デフォルト3ワーカー
-NUM_WORKERS=5 ./setup.sh               # 5ワーカーで構築
+# 1. 既存ウィンドウクリーンアップ
+./cleanup-iterm.sh
 
-# クイック起動（プロファイル使用）
-./start-profile.sh --profile core --yes --assign      # 4人構成
-./start-profile.sh --profile full --yes --assign      # 8人構成
-./start-profile.sh --profile core --workers 6 --yes   # カスタム人数
-
-# 個別起動
-./launch-agents.sh -y                  # 全エージェント起動
-```
-
-### エージェント間通信
-```bash
-# メッセージ送信
-./agent-send.sh [エージェント名] "[メッセージ]"
-./agent-send.sh president "プロジェクト開始"
-./agent-send.sh boss1 "タスク割り当て"
-./agent-send.sh worker1 "実装完了"
-
-# 利用可能エージェント確認
-./agent-send.sh --list
+# 2. マルチスペース起動（全グループを3つのスペースに配置）
+./launch-multi-space.sh \
+  --management-layout tabs \
+  --workers-layout tabs \
+  --reviewers-layout tabs
 ```
 
 ### 監視・管理
 ```bash
-# プロジェクトステータス確認
-./project-status.sh
+# 全エージェント状態確認
+./agent-status.sh
 
-# ダッシュボード起動（要: gum or fzf）
-./dashboard.sh
+# Wチェック実行（品質・セキュリティダブルチェック）
+./review-report-system.sh check [path]
 
-# tmuxセッション確認
-tmux list-sessions
-tmux attach-session -t president       # PRESIDENT画面
-tmux attach-session -t multiagent      # boss1+workers画面
+# エージェント一覧確認
+./agent-send.sh --list
 ```
 
-## 役割別ガイド（/sc コマンド）
-Claude Code内で以下のスラッシュコマンドで役割別ガイドを参照:
-- `/sc:president:guide` - PRESIDENT向け実践ガイド
-- `/sc:boss1:guide` - boss1向けタスク管理ガイド
-- `/sc:worker:guide` - worker向け実装ガイド
-
-## 重要な実装詳細
-
-### tmuxペイン管理
-- multiagentセッション: 左ペイン(0.0)がboss1、右ペイン(0.1〜)がworkers
-- 動的スケーリング: NUM_WORKERSで可変（1〜無制限）
-- ペイン番号とエージェント名の対応は固定
-
-### ログ・状態管理
-- 送信ログ: `logs/send_log.txt`
-- worker完了フラグ: `tmp/worker[N]_done.txt`
-- マスタータスク: `/workspace/[プロジェクト名]/MASTER_TASKS.md`
-
-### 環境変数
+### エージェント間通信
 ```bash
-NUM_WORKERS      # ワーカー数（デフォルト: 3）
-AGENT_CMD        # 起動コマンド（デフォルト: claude）
-AGENT_ARGS       # 起動引数（デフォルト: --dangerously-skip-permissions）
-TMUX_WINDOW_WIDTH  # ウィンドウ幅（デフォルト: 240）
-TMUX_WINDOW_HEIGHT # ウィンドウ高さ（デフォルト: 80）
+# 利用可能なエージェント名を確認
+./agent-send.sh --list
+
+# ARCHITECTに指示（全体設計担当）
+./agent-send.sh architect "システム設計を開始してください"
+
+# 専門エージェントに直接指示
+./agent-send.sh FRONTEND "UI実装を開始してください"
+./agent-send.sh BACKEND "API実装を開始してください"
+./agent-send.sh DATABASE "データモデル設計を開始してください"
+./agent-send.sh SECURITY "セキュリティチェックを開始してください"
+./agent-send.sh TESTING "テスト実装を開始してください"
+./agent-send.sh DEPLOY "デプロイ準備を開始してください"
+./agent-send.sh DOCS "ドキュメント作成を開始してください"
+./agent-send.sh QA "品質チェックを開始してください"
+
+# 旧形式（worker番号）も使用可能
+./agent-send.sh worker1 "タスクを開始してください"
 ```
+
+## ワークフロー
+
+### 1. システム起動
+```bash
+./cleanup-iterm.sh
+./launch-multi-space.sh --management-layout tabs --workers-layout tabs --reviewers-layout tabs
+```
+
+### 2. 認証完了
+- **スペース1** (Control + 1): PRESIDENT + ARCHITECT で認証
+- **スペース2** (Control + 2): 8 WORKERS で認証
+- **スペース3** (Control + 3): 2 REVIEWERS で認証
+
+### 3. プロジェクト実行
+1. **スペース1** → PRESIDENTで要件入力（例: "ECサイトを作りたい"）
+2. **スペース2** → 各WORKERの自動実装を確認
+3. **スペース3** → REVIEWERの品質・セキュリティチェックを確認
+
+## スペース操作
+
+### macOSスペース切り替え
+- `Control + →`: 次のスペース
+- `Control + ←`: 前のスペース
+- `Control + 1`: スペース1（統括）
+- `Control + 2`: スペース2（実装）
+- `Control + 3`: スペース3（レビュー）
+
+## 役割別ガイド
+各エージェントの詳細な動作指示は以下を参照:
+- **PRESIDENT**: `instructions/president.md`
+- **ARCHITECT**: （boss1の役割を継承）`instructions/boss.md`
+- **WORKERS**: `instructions/worker.md`
+
+## 作業ディレクトリ
+- 共通作業場所: `/workspace/[プロジェクト名]/`
+- 全エージェントが同じディレクトリで作業
 
 ## トラブルシューティング
 
-### セッション関連
+### システムリセット
 ```bash
-# セッション強制削除
-tmux kill-session -t multiagent
-tmux kill-session -t president
+# 全ウィンドウクリーンアップ
+./cleanup-iterm.sh
 
-# 全セッションリセット
-tmux kill-server
+# 再起動
+./launch-multi-space.sh --management-layout tabs --workers-layout tabs --reviewers-layout tabs
 ```
 
-### 認証問題
-- 各エージェントでブラウザ認証が必要
-- 認証前のメッセージ送信は失敗する
-- `--dangerously-skip-permissions`は開発環境限定
+### 認証エラー
+- 各スペースで全エージェントのブラウザ認証が必要
+- 認証前のメッセージ送信は失敗します
 
-### メッセージ送信エラー
-- ターゲットペインの存在確認: `tmux list-panes -a`
-- セッション起動確認: `tmux has-session -t [session]`
+### エージェント状態確認
+```bash
+# 全エージェントのステータス確認
+./agent-status.sh
 
-## あなたの役割の確認
-エージェントとして動作する場合、以下のドキュメントを参照:
-- **PRESIDENT**: `instructions/president.md`
-- **boss1**: `instructions/boss.md`  
-- **worker**: `instructions/worker.md` 
+# 特定パスのWチェック
+./review-report-system.sh check workspace/project-name/
+```

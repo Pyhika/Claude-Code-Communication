@@ -33,9 +33,11 @@
 ```
 
 ## 実践的な指示テンプレート
+
+### ARCHITECTへの全体指示
 ```bash
-# 即座に使える指示フォーマット
-./agent-send.sh boss1 "あなたはboss1です。
+# ARCHITECTに全体設計とタスク分配を依頼
+./agent-send.sh architect "あなたはARCHITECTです。
 
 【タスク】[具体的なタスク名]
 【納期】[YYYY/MM/DD HH:MM]
@@ -52,7 +54,7 @@
 - [測定可能な数値目標2]
 
 【リソース】
-- 利用可能な人員：worker1-3
+- 利用可能な人員：FRONTEND, BACKEND, DATABASE, SECURITY, TESTING, DEPLOY, DOCS, QA
 - 技術スタック：[使用する技術]
 - 参考資料：[URLやドキュメント]
 
@@ -60,7 +62,23 @@
 - [想定されるリスク]
 - [回避すべき落とし穴]
 
-30分ごとに進捗報告してください。問題があれば即座に相談を。"
+各専門エージェントにタスクを分配し、30分ごとに進捗報告してください。"
+```
+
+### 専門エージェントへの直接指示
+```bash
+# フロントエンド担当への指示
+./agent-send.sh FRONTEND "【UI実装タスク】
+詳細はworkspace/project-name/WORKER_INSTRUCTIONS.mdのFRONTENDセクションを確認してください。
+優先度【高】UIモックアップから実装開始。"
+
+# バックエンド担当への指示
+./agent-send.sh BACKEND "【API実装タスク】
+詳細はworkspace/project-name/WORKER_INSTRUCTIONS.mdのBACKENDセクションを確認してください。
+優先度【高】認証APIから実装開始。"
+
+# 旧形式（worker番号）も使用可能
+./agent-send.sh worker1 "タスクを開始してください"
 ```
 
 ## 実案件での具体例
