@@ -240,7 +240,25 @@ launch_reviewers() {
 
     local rev_a_icon=$(get_agent_icon "$AGENT_REVIEWER_A")
     local rev_b_icon=$(get_agent_icon "$AGENT_REVIEWER_B")
+    local rev_a_internal=$(get_internal_name "$AGENT_REVIEWER_A")
+    local rev_b_internal=$(get_internal_name "$AGENT_REVIEWER_B")
 
+    # tmuxセッション作成
+    echo "  📦 tmuxセッション作成中..."
+
+    # REVIEWER_A tmuxセッション
+    tmux new-session -d -s "$rev_a_internal" -c "$SCRIPT_DIR"
+    tmux send-keys -t "$rev_a_internal" "./agent-identity.sh $AGENT_REVIEWER_A" C-m
+    sleep 2
+    tmux send-keys -t "$rev_a_internal" "claude --dangerously-skip-permissions" C-m
+
+    # REVIEWER_B tmuxセッション
+    tmux new-session -d -s "$rev_b_internal" -c "$SCRIPT_DIR"
+    tmux send-keys -t "$rev_b_internal" "./agent-identity.sh $AGENT_REVIEWER_B" C-m
+    sleep 2
+    tmux send-keys -t "$rev_b_internal" "claude --dangerously-skip-permissions" C-m
+
+    # iTerm2ウィンドウも作成（オプション）
     case "$layout" in
         "tabs")
             # REVIEWER_A
