@@ -51,38 +51,79 @@ list_agents() {
 
 status_view() {
   echo "【チーム進捗状況】"
-  
+
   # tmuxセッションから実際のworker数を取得
   local pane_count=$(tmux list-panes -t multiagent:0 -F "#{pane_index}" 2>/dev/null | wc -l | tr -d ' ')
-  
+
   if [ -n "$pane_count" ] && [ "$pane_count" -gt 1 ]; then
     local worker_count=$((pane_count - 1))
   else
     local worker_count=${NUM_WORKERS:-3}
   fi
-  
-  # 全workerの状態を表示
+
+  # 全workerの状態を表示（ペインの最終行をチェック）
   for i in $(seq 1 "$worker_count"); do
+    local last_activity=""
+    local last_line=$(tmux capture-pane -t "multiagent:0.$i" -p 2>/dev/null | tail -n 5 | grep -v "^$" | tail -n 1)
+
     if [ -f "$TMP_DIR/worker${i}_done.txt" ]; then
       echo "Worker$i: ✅ 完了"
-    else
+    elif echo "$last_line" | grep -q -E "(完了|✅|Completed|Done)"; then
+      echo "Worker$i: ✅ タスク完了"
+    elif echo "$last_line" | grep -q -E "(作業中|実装中|Creating|Building|🔄|🚀|📦|🛒)"; then
       echo "Worker$i: 🔄 作業中"
+    else
+      echo "Worker$i: ⏳ 待機中"
     fi
   done
+
+  # プロジェクトディレクトリの状態も確認
+  echo ""
+  echo "【プロジェクト状態】"
+  if [ -d "workspace/tea-shop" ]; then
+    echo "📁 作業ディレクトリ: workspace/tea-shop/"
+    if [ -f "workspace/tea-shop/package.json" ]; then
+      echo "✅ Next.js プロジェクト: セットアップ完了"
+    fi
+    if [ -d "workspace/tea-shop/node_modules" ]; then
+      echo "✅ 依存関係: インストール済み"
+    fi
+    if [ -d "workspace/tea-shop/app" ] || [ -d "workspace/tea-shop/src" ]; then
+      echo "✅ ソースコード: 実装中"
+    fi
+    if [ -f "workspace/tea-shop/PROJECT_REQUIREMENTS.md" ]; then
+      echo "✅ 要件定義書: 作成済み"
+    fi
+    if [ -f "workspace/tea-shop/MASTER_TASKS.md" ]; then
+      echo "✅ タスクリスト: 作成済み"
+    fi
+  else
+    echo "⚠️ プロジェクトディレクトリが存在しません"
+  fi
   
   # Claudeの起動状態も確認
   echo ""
   echo "【Claude起動状態】"
-  for pane in $(tmux list-panes -t multiagent:0 -F "#{pane_index}:#{pane_title}" 2>/dev/null); do
-    local idx="${pane%%:*}"
-    local title="${pane#*:}"
+
+  # presidentの状態をチェック
+  local president_content=$(tmux capture-pane -t "president" -p 2>/dev/null | tail -n 20)
+  if echo "$president_content" | grep -q -E "(bypass permissions|esc to interrupt|ctrl\+t to show todos|Claude Code|Welcome to Claude|^> $|───────)"; then
+    echo "president: ✅ Claude起動中"
+  else
+    echo "president: ⚠️ Claude未起動"
+  fi
+
+  # boss1とworkersの状態をチェック
+  local panes=$(tmux list-panes -t multiagent:0 -F "#{pane_index}" 2>/dev/null | sort -n)
+  for idx in $panes; do
     local name="boss1"
-    if [ "$idx" -gt 0 ]; then
+    if [ "$idx" -ne 0 ]; then
       name="worker$idx"
     fi
-    
-    # Claudeプロセスの確認
-    if tmux capture-pane -t "multiagent:0.$idx" -p 2>/dev/null | grep -q "claude@"; then
+
+    # Claudeプロセスの確認（改善されたパターン）
+    local pane_content=$(tmux capture-pane -t "multiagent:0.$idx" -p 2>/dev/null | tail -n 20)
+    if echo "$pane_content" | grep -q -E "(bypass permissions|esc to interrupt|ctrl\+t to show todos|Claude Code|Welcome to Claude|^> $|───────|✢|⎿|⏵⏵)"; then
       echo "$name: ✅ Claude起動中"
     else
       echo "$name: ⚠️ Claude未起動"
@@ -92,11 +133,54 @@ status_view() {
 
 recent_logs() {
   echo "【最近の送信ログ】"
+  echo "─────────────────────────────"
   if [ -f "$LOG_DIR/send_log.txt" ]; then
-    tail -n 20 "$LOG_DIR/send_log.txt"
+    # 最新20件のログを取得して、改行文字を実際の改行に変換
+    tail -n 20 "$LOG_DIR/send_log.txt" | while IFS= read -r line; do
+      # タイムスタンプと送信者を抽出
+      if [[ "$line" =~ ^\[([^\]]+)\]\ ([^:]+):\ SENT\ -\ \"(.*)\"$ ]]; then
+        timestamp="${BASH_REMATCH[1]}"
+        agent="${BASH_REMATCH[2]}"
+        message="${BASH_REMATCH[3]}"
+
+        # エージェント名に色を付ける
+        case "$agent" in
+          president)
+            agent_display="👑 president"
+            ;;
+          boss1)
+            agent_display="💼 boss1    "
+            ;;
+          worker*)
+            agent_display="👷 $agent  "
+            ;;
+          *)
+            agent_display="   $agent    "
+            ;;
+        esac
+
+        # タイムスタンプを短縮形式に変換（時刻のみ表示）
+        time_only="${timestamp#* }"
+
+        # メッセージの最初の行を取得（改行前まで）
+        first_line="${message%%\\n*}"
+
+        # 長いメッセージは切り詰めて表示
+        if [ ${#first_line} -gt 60 ]; then
+          first_line="${first_line:0:57}..."
+        fi
+
+        # フォーマットして出力
+        printf "%-8s %s │ %s\n" "$time_only" "$agent_display" "$first_line"
+      else
+        # 通常のログフォーマットでない場合はそのまま表示
+        echo "$line"
+      fi
+    done
   else
     echo "(ログなし)"
   fi
+  echo "─────────────────────────────"
 }
 
 pick_template() {

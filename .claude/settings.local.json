@@ -12,7 +12,15 @@
       "Bash(./enable-mouse.sh)",
       "Bash(tmux show-options:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(./test-dashboard.sh:*)",
+      "Bash(tmux:*)",
+      "Bash(killall:*)",
+      "Bash(./start-profile.sh:*)",
+      "Bash(npm:*)",
+      "Bash(yarn:*)",
+      "Edit(./src/**)",
+      "Read(./**)"
     ],
     "deny": [],
     "ask": []
